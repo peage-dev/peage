@@ -16,7 +16,7 @@
     "@peage/react-native": "workspace:*",
     "react": "catalog:",
     "react-native": "catalog:",
-    "react-native-safe-area-context": "^5.5.2"
+    "react-native-safe-area-context": "^5.10.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
