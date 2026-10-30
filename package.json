@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",
+    "@changesets/cli": "catalog:",
     "@peage/protocol": "workspace:*",
     "@types/node": "catalog:",
     "oxfmt": "catalog:",

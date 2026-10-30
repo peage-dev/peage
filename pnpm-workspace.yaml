@@ -34,6 +34,7 @@ catalog:
   hermes-compiler: 260318099.0.4
   ioredis: ^6.0.0
   tsdown: 0.23.1
+  '@changesets/cli': 3.0.3
   publint: 0.3.25
   '@arethetypeswrong/core': 0.18.5
 overrides:

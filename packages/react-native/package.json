@@ -1,7 +1,6 @@
 {
   "name": "@peage/react-native",
   "version": "0.0.0",
-  "private": true,
   "license": "MIT",
   "repository": {
     "type": "git",
