@@ -70,11 +70,16 @@ function removeDotSegments(pathname: string): string {
   return `/${kept.join('/')}`
 }
 
+/** Node's fetch before undici 7.25, axios on Node and some proxies send `/a?` as `/a`. */
+function withoutEmptyQuery(query: string): string {
+  return query === '?' ? '' : query
+}
+
 function normalizePath(path: string): string {
   const [withoutFragment = ''] = path.split('#')
   const queryStart = withoutFragment.indexOf('?')
   const pathname = queryStart === -1 ? withoutFragment : withoutFragment.slice(0, queryStart)
-  const query = queryStart === -1 ? '' : withoutFragment.slice(queryStart)
+  const query = queryStart === -1 ? '' : withoutEmptyQuery(withoutFragment.slice(queryStart))
   return (
     percentEncode(removeDotSegments(pathname), PATH_CHARACTER) +
     percentEncode(query, QUERY_CHARACTER)

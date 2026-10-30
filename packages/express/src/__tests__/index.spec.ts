@@ -1325,20 +1325,23 @@ describe('peage.protect', () => {
     },
   )
 
-  it.each(['/a%2Fb%c3%A9', "/a'b;c:d@e", '/a!$&()*+,=-._~', '/api/hello?x=1&y=%20&z=/?'])(
-    'verifies the request-target %s signed over it',
-    async (target) => {
-      const app = await makeAppWithKey()
-      const status = await statusOverSocket(
-        await serve(app),
-        requestHead('GET', target, {
-          ...signedHeaders({ method: 'GET', path: target, body: '' }),
-          Connection: 'close',
-        }),
-      )
-      expect(status).toBe(200)
-    },
-  )
+  it.each([
+    '/a%2Fb%c3%A9',
+    "/a'b;c:d@e",
+    '/a!$&()*+,=-._~',
+    '/api/hello?x=1&y=%20&z=/?',
+    '/api/hello?',
+  ])('verifies the request-target %s signed over it', async (target) => {
+    const app = await makeAppWithKey()
+    const status = await statusOverSocket(
+      await serve(app),
+      requestHead('GET', target, {
+        ...signedHeaders({ method: 'GET', path: target, body: '' }),
+        Connection: 'close',
+      }),
+    )
+    expect(status).toBe(200)
+  })
 
   it('verifies the request-target * of OPTIONS signed over it', async () => {
     const app = await makeAppWithKey()

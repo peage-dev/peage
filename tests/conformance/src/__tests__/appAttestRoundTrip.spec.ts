@@ -193,7 +193,9 @@ describe.each([
     ['/check/a\\b', '/check/a%5Cb'],
     ['/check/😀', '/check/%F0%9F%98%80'],
     ['/check//x', '/check//x'],
-    ['/check?', '/check?'],
+    ['/check?', '/check'],
+    ['/check?#top', '/check'],
+    ['/check??', '/check??'],
     ['/check/a%2fb', '/check/a%2fb'],
     ['/check/a+b?q=a+b', '/check/a+b?q=a+b'],
   ])('verifies %s, received by the server as %s', async (path, receivedPath) => {
