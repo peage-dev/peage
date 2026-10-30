@@ -1,6 +1,6 @@
 {
   "name": "@peage/react-native",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -43,7 +43,7 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "react-native": ">=0.88 <0.89"
+    "react-native": ">=0.88"
   },
   "codegenConfig": {
     "name": "RNPeageAttestSpec",
