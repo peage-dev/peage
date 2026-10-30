@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": ["src", "tsdown.config.ts"],
+  "exclude": ["src/__tests__"]
+}

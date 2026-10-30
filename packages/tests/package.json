@@ -1,0 +1,22 @@
+{
+  "name": "@peage/tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint --type-aware",
+    "lint:fix": "oxlint --type-aware --fix"
+  },
+  "dependencies": {
+    "@peage/protocol": "workspace:*",
+    "@peculiar/asn1-android": "catalog:",
+    "@peculiar/asn1-schema": "catalog:",
+    "@peculiar/asn1-x509": "catalog:",
+    "cbor2": "catalog:"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@peage/example-express",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint --type-aware",
+    "lint:fix": "oxlint --type-aware --fix",
+    "start": "node server.ts"
+  },
+  "dependencies": {
+    "@peage/express": "workspace:*",
+    "@peage/store-memory": "workspace:*",
+    "express": "catalog:"
+  },
+  "devDependencies": {
+    "@types/express": "catalog:"
+  }
+}

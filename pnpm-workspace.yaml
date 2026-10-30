@@ -1,0 +1,52 @@
+minimumReleaseAge: 10080
+savePrefix: ''
+strictDepBuilds: true
+blockExoticSubdeps: true
+trustPolicy: no-downgrade
+autoInstallPeers: false
+
+packages:
+  - packages/*
+  - examples/*
+  - tests/*
+
+catalogMode: prefer
+
+catalog:
+  '@types/node': ^24.12.4
+  '@typescript/native-preview': 7.0.0-dev.20260421.2
+  oxlint: ^1
+  oxlint-tsgolint: ^0.22
+  oxfmt: ^0.48
+  vite: ^8
+  vitest: ^4.1.0
+  cbor2: 2.3.0
+  '@peculiar/asn1-android': 2.7.0
+  asn1js: 3.0.10
+  '@peculiar/asn1-schema': 2.7.0
+  '@peculiar/asn1-x509': 2.7.0
+  express: ^5
+  '@types/express': ^5
+  react: ^19.3.0
+  react-native: ^0.88
+  supertest: ^7
+  '@types/supertest': ^6
+  hermes-compiler: 260318099.0.4
+  ioredis: ^6.0.0
+  tsdown: 0.23.1
+  publint: 0.3.25
+  '@arethetypeswrong/core': 0.18.5
+overrides:
+  vite: 'catalog:'
+  vitest: 'catalog:'
+  # Babel, which react-native's Metro toolchain pulls in, asks for semver ^6;
+  # semver@6.3.1 lost provenance vs. earlier versions and trips the
+  # `trustPolicy: no-downgrade` rule.
+  semver: '^7'
+peerDependencyRules:
+  allowAny:
+    - vite
+    - vitest
+  allowedVersions:
+    vite: '*'
+    vitest: '*'

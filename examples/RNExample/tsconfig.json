@@ -1,0 +1,10 @@
+{
+  "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    "types": [],
+    "skipLibCheck": true,
+    "strict": true
+  },
+  "include": ["**/*.ts", "**/*.tsx", "../../packages/react-native/src/globals.d.ts"],
+  "exclude": ["**/node_modules", "**/Pods"]
+}

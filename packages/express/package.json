@@ -1,0 +1,57 @@
+{
+  "name": "@peage/express",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/peage-dev/peage.git",
+    "directory": "packages/express"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.mjs",
+      "./package.json": "./package.json"
+    }
+  },
+  "scripts": {
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint --type-aware",
+    "lint:fix": "oxlint --type-aware --fix",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@peage/core": "workspace:*",
+    "@peage/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@peage/store-memory": "workspace:*",
+    "@peage/tests": "workspace:*",
+    "@types/express": "catalog:",
+    "@types/supertest": "catalog:",
+    "express": "catalog:",
+    "supertest": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "@types/express": "catalog:",
+    "express": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@types/express": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

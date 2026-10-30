@@ -1,0 +1,23 @@
+{
+  "name": "@peage/conformance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint --type-aware",
+    "lint:fix": "oxlint --type-aware --fix",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@peage/express": "workspace:*",
+    "@peage/protocol": "workspace:*",
+    "@peage/react-native": "workspace:*",
+    "@peage/store-memory": "workspace:*",
+    "@peage/tests": "workspace:*",
+    "@types/express": "catalog:",
+    "express": "catalog:",
+    "vitest": "catalog:"
+  }
+}

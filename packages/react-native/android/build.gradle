@@ -1,0 +1,19 @@
+// Built inside the host app: its root project supplies the Android, Kotlin and
+// React Native Gradle plugins, the repositories, and the SDK versions.
+apply plugin: "com.android.library"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+android {
+    namespace "dev.peage.reactnative"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        minSdk rootProject.ext.minSdkVersion
+    }
+}
+
+dependencies {
+    implementation "com.facebook.react:react-android"
+    implementation "com.google.android.play:integrity:1.6.0"
+}

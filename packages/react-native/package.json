@@ -1,0 +1,62 @@
+{
+  "name": "@peage/react-native",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/peage-dev/peage.git",
+    "directory": "packages/react-native"
+  },
+  "files": [
+    "dist",
+    "src/NativePeageAttest.ts",
+    "ios",
+    "android/src",
+    "android/build.gradle",
+    "*.podspec"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json",
+    "./testing": "./src/testing.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./package.json": "./package.json"
+    }
+  },
+  "scripts": {
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint --type-aware",
+    "lint:fix": "oxlint --type-aware --fix",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@peage/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "react": "catalog:",
+    "react-native": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "react-native": ">=0.88 <0.89"
+  },
+  "codegenConfig": {
+    "name": "RNPeageAttestSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "dev.peage.reactnative"
+    },
+    "ios": {
+      "modulesProvider": {
+        "PeageAttest": "PeageAttest"
+      }
+    }
+  }
+}

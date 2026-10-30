@@ -1,0 +1,46 @@
+{
+  "name": "@peage/core",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/peage-dev/peage.git",
+    "directory": "packages/core"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.mjs",
+      "./package.json": "./package.json"
+    }
+  },
+  "scripts": {
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint --type-aware",
+    "lint:fix": "oxlint --type-aware --fix",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@peage/protocol": "workspace:*",
+    "@peculiar/asn1-schema": "catalog:",
+    "@peculiar/asn1-x509": "catalog:",
+    "asn1js": "catalog:",
+    "cbor2": "catalog:"
+  },
+  "devDependencies": {
+    "@peage/tests": "workspace:*",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

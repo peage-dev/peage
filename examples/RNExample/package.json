@@ -1,0 +1,39 @@
+{
+  "name": "RNExample",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint --type-aware",
+    "lint:fix": "oxlint --type-aware --fix",
+    "typecheck": "tsgo --noEmit",
+    "start": "react-native start"
+  },
+  "dependencies": {
+    "@peage/react-native": "workspace:*",
+    "react": "catalog:",
+    "react-native": "catalog:",
+    "react-native-safe-area-context": "^5.5.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/runtime": "^7.25.0",
+    "@react-native-community/cli": "20.2.0",
+    "@react-native-community/cli-platform-android": "20.2.0",
+    "@react-native-community/cli-platform-ios": "20.2.0",
+    "@react-native/babel-preset": "0.88.0",
+    "@react-native/codegen": "0.88.0",
+    "@react-native/gradle-plugin": "0.88.0",
+    "@react-native/metro-config": "0.88.0",
+    "@react-native/typescript-config": "0.88.0",
+    "@types/react": "^19",
+    "@typescript/native-preview": "catalog:",
+    "hermes-compiler": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

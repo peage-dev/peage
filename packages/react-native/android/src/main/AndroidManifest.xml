@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- isSupported checks that the Play Store is installed; Android 11+ hides other packages otherwise. -->
+    <queries>
+        <package android:name="com.android.vending" />
+    </queries>
+</manifest>
