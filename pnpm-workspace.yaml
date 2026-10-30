@@ -19,7 +19,7 @@ catalog:
   oxlint-tsgolint: ^7.0
   oxfmt: ^0.73
   vite: ^8
-  vitest: ^4.1.0
+  vitest: ^5.0.5
   cbor2: 2.4.0
   '@peculiar/asn1-android': 2.11.0
   asn1js: 3.1.0
