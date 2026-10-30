@@ -14,7 +14,7 @@ catalogMode: prefer
 
 catalog:
   '@types/node': ^24.12.4
-  '@typescript/native-preview': 7.0.0-dev.20260421.2
+  typescript: 7.0.2
   oxlint: ^1
   oxlint-tsgolint: ^7.0
   oxfmt: ^0.73

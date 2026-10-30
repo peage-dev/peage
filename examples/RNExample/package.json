@@ -9,7 +9,7 @@
     "format:check": "oxfmt --check",
     "lint": "oxlint --type-aware",
     "lint:fix": "oxlint --type-aware --fix",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "tsc --noEmit",
     "start": "react-native start"
   },
   "dependencies": {
@@ -30,8 +30,8 @@
     "@react-native/metro-config": "0.88.0",
     "@react-native/typescript-config": "0.88.0",
     "@types/react": "^19",
-    "@typescript/native-preview": "catalog:",
-    "hermes-compiler": "catalog:"
+    "hermes-compiler": "catalog:",
+    "typescript": "catalog:"
   },
   "engines": {
     "node": ">=24.0.0"

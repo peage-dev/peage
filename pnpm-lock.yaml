@@ -27,9 +27,6 @@ catalogs:
     '@types/supertest':
       specifier: ^7
       version: 7.2.1
-    '@typescript/native-preview':
-      specifier: 7.0.0-dev.20260421.2
-      version: 7.0.0-dev.20260421.2
     asn1js:
       specifier: 3.1.0
       version: 3.1.0
@@ -69,6 +66,9 @@ catalogs:
     tsdown:
       specifier: 0.23.1
       version: 0.23.1
+    typescript:
+      specifier: 7.0.2
+      version: 7.0.2
 
 overrides:
   vite: ^8
@@ -88,9 +88,6 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.4
-      '@typescript/native-preview':
-        specifier: 'catalog:'
-        version: 7.0.0-dev.20260421.2
       oxfmt:
         specifier: 'catalog:'
         version: 0.73.0
@@ -105,7 +102,10 @@ importers:
         version: 0.3.25
       tsdown:
         specifier: 'catalog:'
-        version: 0.23.1(@arethetypeswrong/core@0.18.5)(@typescript/native-preview@7.0.0-dev.20260421.2)(publint@0.3.25)
+        version: 0.23.1(@arethetypeswrong/core@0.18.5)(publint@0.3.25)(typescript@7.0.2)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
 
   examples/RNExample:
     dependencies:
@@ -117,10 +117,10 @@ importers:
         version: 19.3.1
       react-native:
         specifier: 'catalog:'
-        version: 0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1)
+        version: 0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1)
       react-native-safe-area-context:
         specifier: ^5.10.1
-        version: 5.10.1(react-native@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1))(react@19.3.1)
+        version: 5.10.1(react-native@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1))(react@19.3.1)
     devDependencies:
       '@babel/core':
         specifier: ^7.25.2
@@ -130,7 +130,7 @@ importers:
         version: 7.29.2
       '@react-native-community/cli':
         specifier: 20.2.0
-        version: 20.2.0(supports-color@8.1.1)
+        version: 20.2.0(supports-color@8.1.1)(typescript@7.0.2)
       '@react-native-community/cli-platform-android':
         specifier: 20.2.0
         version: 20.2.0
@@ -155,12 +155,12 @@ importers:
       '@types/react':
         specifier: ^19
         version: 19.3.0
-      '@typescript/native-preview':
-        specifier: 'catalog:'
-        version: 7.0.0-dev.20260421.2
       hermes-compiler:
         specifier: 'catalog:'
         version: 260318099.0.4
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
 
   examples/express:
     dependencies:
@@ -251,7 +251,7 @@ importers:
         version: 19.3.1
       react-native:
         specifier: 'catalog:'
-        version: 0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1)
+        version: 0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1)
       vitest:
         specifier: ^4.1.0
         version: 4.1.6(@types/node@24.12.4)(terser@5.48.0)(yaml@2.9.0)
@@ -1433,44 +1433,125 @@ packages:
   '@types/yargs@17.0.35':
     resolution: {integrity: sha512-qUHkeCyQFxMXg79wQfTtfndEC+N9ZZg76HJftDJp+qH2tV7Gj4OJi7l+PiWwJ+pWtW8GwSmqsDj/oymhrTWXjg==}
 
-  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-fHv1r3ZmVo6zxuAIFmuX3w9QxbcauoG0SsWhmDwm6VmRubLlOJIcmTtlmV3JAb9oOnq8LuzZljzT7Q39fSMQDw==}
+  '@typescript/typescript-aix-ppc64@7.0.2':
+    resolution: {integrity: sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [ppc64]
+    os: [aix]
+
+  '@typescript/typescript-darwin-arm64@7.0.2':
+    resolution: {integrity: sha512-gowzar9MwS/aRWp6f3a4KUqzRjAZjOsmGNCM6LcTgXum+dBfgsBVMN+AgvOCCbguXyick6LJhpBszxMebJ8syA==}
+    engines: {node: '>=16.20.0'}
     cpu: [arm64]
     os: [darwin]
 
-  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-KWTR6xbW9t+JS7D5DQIzo75pqVXVWUxF9PMv/+S6xsnOjCVd6g0ixHcFpFMJMKSUQpGPr8Z5f7b8ks6LHW01jg==}
+  '@typescript/typescript-darwin-x64@7.0.2':
+    resolution: {integrity: sha512-SZ9xZInqApNlNGc9s0W1VSsktYSOe9cFqNOIqmN1Gs8SmkjKZYFt017G4VwPxASInODuAdbTW7sXiFUf893RgA==}
+    engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [darwin]
 
-  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-VLMEuml3BhUb+jaL0TXQ4xvVODxJF+RhkI+tBWvlynsJI4khTXEiwWh+wPOJrsfBRYFRMXEu28Odl/HXkYze8w==}
+  '@typescript/typescript-freebsd-arm64@7.0.2':
+    resolution: {integrity: sha512-W5NH4y/J0plIIS5b2xvTEkU7JFxyqdMAOgf+Ilhl0vHQXKO5dZoxd+C/jEtq56c4F3wk71RB4BMRQ2XdI+bwYQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [freebsd]
+
+  '@typescript/typescript-freebsd-x64@7.0.2':
+    resolution: {integrity: sha512-UMGDx5sTpzNw3WiPebH7l90IWfJggEd+egHt/q6p7/Cm3zqoV7VxkGXt+3DxPIw8CcmvAB0j3sVVfbhX+M4Tpw==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [freebsd]
+
+  '@typescript/typescript-linux-arm64@7.0.2':
+    resolution: {integrity: sha512-Qh4eU4/y3yDjnfjjyPYihMj5/ODIlmt+Bzu17OI+fiSRDW57QmU5SiN63exPRNJPKUzcc1INa1NXdrJ+MqHjUQ==}
+    engines: {node: '>=16.20.0'}
     cpu: [arm64]
     os: [linux]
 
-  '@typescript/native-preview-linux-arm@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-BWLQO3nemLDSV5PoE5GPHe1dU9Dth77Kv8/cle9Ujcp4LhPo0KincdPqFH/qKeU/xvW25mgFueflZ1nc4rKuww==}
+  '@typescript/typescript-linux-arm@7.0.2':
+    resolution: {integrity: sha512-gffT3xPz9sR7j/YJExkyPntrI0P2EP9XbOyWzth2/Gs0RstK+90RBcO0ncXoXy/beYll1SXw846Nf2zdnEz0QQ==}
+    engines: {node: '>=16.20.0'}
     cpu: [arm]
     os: [linux]
 
-  '@typescript/native-preview-linux-x64@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-qUrJWTB5/wv4wnRG0TRXElAxc2kykNiRNyEIEqBbLmzDlrcvAW7RRy8MXoY1ZyTiKGMu14itZ3x9oW6+blFpRw==}
+  '@typescript/typescript-linux-loong64@7.0.2':
+    resolution: {integrity: sha512-uEHck9i8hoAzXPiYRib1O7miOnz23SxIeVl6F4LXox+qov1K35jHcEW6VHKvZI+pyvl7fZEP4MCU5LYvIq1GuQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [loong64]
+    os: [linux]
+
+  '@typescript/typescript-linux-mips64el@7.0.2':
+    resolution: {integrity: sha512-R4KvAMnE43W5Qeqb0Ly56O3mWMWIAgsMyz36DCaycd5nbg/9kzm0liw3JocfRqyJY0KPmzFjbswozXyW0DnIYA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [mips64el]
+    os: [linux]
+
+  '@typescript/typescript-linux-ppc64@7.0.2':
+    resolution: {integrity: sha512-DORx5b3sd/4S7eayxm4FQv+A7CrkUIGRaHiwI8oiHTAI1fAPWhF4J0vAlkC8biAlHSVVwxMQ3tjZ2/DVbnQiiA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [ppc64]
+    os: [linux]
+
+  '@typescript/typescript-linux-riscv64@7.0.2':
+    resolution: {integrity: sha512-wf0jqEDOjrPRnKwYRyyJDRo11KMbvMFrU+q4zqKyChODBzvlkbhNQfKvLxQCcwTpdDaXSHZTVuh0JoCrKCUMHQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [riscv64]
+    os: [linux]
+
+  '@typescript/typescript-linux-s390x@7.0.2':
+    resolution: {integrity: sha512-IkwJc3L7yhytWd/ewjyxNDfOmswCm9GWMJT/ue/dU4aZNbwZeYAetq42VyLmsmSjvoX7z74X6ZaYCtzAr0EuGw==}
+    engines: {node: '>=16.20.0'}
+    cpu: [s390x]
+    os: [linux]
+
+  '@typescript/typescript-linux-x64@7.0.2':
+    resolution: {integrity: sha512-EYdf2cNg7rgCWJnxCdJ+F3V39O8ihb37eHAu1LK8oAFizgTQbPOK7zHHXbPt8rX24COqODXeI3sIf0fCXG7H/A==}
+    engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [linux]
 
-  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-Rc6NsWlZmCs5YUKVzKgwoBOoRUGsPzct4BDMRX0csD1devLBBc4AbUXWKsJRbpwIAnqMO1ld4sNHEb+wXgfNHQ==}
+  '@typescript/typescript-netbsd-arm64@7.0.2':
+    resolution: {integrity: sha512-+polYF4MF04aPpO5FTkHran9yUQDSXqy5GiSDKpsll5jy3l3+g9QLhpf39T+ePtefhXLOGrLl0QIjkQP6VnelA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [netbsd]
+
+  '@typescript/typescript-netbsd-x64@7.0.2':
+    resolution: {integrity: sha512-8YIT0EHM/3dq10ZOVF/A7pc/YSMtbcecct4rWtexrnSCHOPcpC2KTLXfTCR6vDpnSiY12heNb1GiN/wu+T/FyA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [netbsd]
+
+  '@typescript/typescript-openbsd-arm64@7.0.2':
+    resolution: {integrity: sha512-APT8+ClYnuYm1u9+kgGXoMj2VzWzcymwh2gNSQVySHfkRDGOTVkoWLjCmOQSaO+PoqQ57B0flRp9SA+7GnnkzQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [openbsd]
+
+  '@typescript/typescript-openbsd-x64@7.0.2':
+    resolution: {integrity: sha512-yX7s+Q0Dln0Dt9tEzZsAjXXR/+ytBM7AlglaqyeMPxQszJ1JhlJdZ6jLA+IzldHtflX81em7lDao1xXu+aRRkg==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [openbsd]
+
+  '@typescript/typescript-sunos-x64@7.0.2':
+    resolution: {integrity: sha512-dLJDGaLZ1D4HPQn62u1n8mBDkJREwMsAkCdkwd4Ieqw+x3TUyTsqY0YiBCtE6H6OzzgGk3iuZ3vFWRS+E8/d1g==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [sunos]
+
+  '@typescript/typescript-win32-arm64@7.0.2':
+    resolution: {integrity: sha512-Gyl1Vy6OsWesLzmq+EP0Fb7b4Nid5232AvcA2SFcdYreldpNtYFFofPjnt62y9hQy7VTaZp65ICJjuAQRaVcIQ==}
+    engines: {node: '>=16.20.0'}
     cpu: [arm64]
     os: [win32]
 
-  '@typescript/native-preview-win32-x64@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-GQv1+dya1t6EqF2Cpsb+xoozovdX10JUSf6Kl/8xNkTapzmlHd+uMr+8ku3jIASTxoRGn0Mklgjj3MDKrOTuLg==}
+  '@typescript/typescript-win32-x64@7.0.2':
+    resolution: {integrity: sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g==}
+    engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [win32]
-
-  '@typescript/native-preview@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-CmajHI25HpVWE9R1XFoxr+cphJPxoYD3eFioQtAvXYkMFKnLdICMS9pXre9Pybizb75ejRxjKD5/CVG055rEIg==}
-    hasBin: true
 
   '@vitest/expect@4.1.6':
     resolution: {integrity: sha512-7EHDquPthALSV0jhhjgEW8FXaviMx7rSqu8W6oqCoAuOhKov814P99QDV1pxMA3QPv21YudvJngIhjrNI4opLg==}
@@ -3214,6 +3295,11 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typescript@7.0.2:
+    resolution: {integrity: sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==}
+    engines: {node: '>=16.20.0'}
+    hasBin: true
+
   unconfig-core@7.5.0:
     resolution: {integrity: sha512-Su3FauozOGP44ZmKdHy2oE6LPjk51M/TRRjHv2HNCWiDvfvCoxC2lno6jevMA91MYAdCdwP05QnWdWpSbncX/w==}
 
@@ -4162,10 +4248,10 @@ snapshots:
       fast-glob: 3.3.3
       picocolors: 1.1.1
 
-  '@react-native-community/cli-config@20.2.0':
+  '@react-native-community/cli-config@20.2.0(typescript@7.0.2)':
     dependencies:
       '@react-native-community/cli-tools': 20.2.0
-      cosmiconfig: 9.0.1
+      cosmiconfig: 9.0.1(typescript@7.0.2)
       deepmerge: 4.3.1
       fast-glob: 3.3.3
       joi: 17.13.3
@@ -4173,9 +4259,9 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@react-native-community/cli-doctor@20.2.0':
+  '@react-native-community/cli-doctor@20.2.0(typescript@7.0.2)':
     dependencies:
-      '@react-native-community/cli-config': 20.2.0
+      '@react-native-community/cli-config': 20.2.0(typescript@7.0.2)
       '@react-native-community/cli-platform-android': 20.2.0
       '@react-native-community/cli-platform-apple': 20.2.0
       '@react-native-community/cli-platform-ios': 20.2.0
@@ -4247,11 +4333,11 @@ snapshots:
     dependencies:
       joi: 17.13.3
 
-  '@react-native-community/cli@20.2.0(supports-color@8.1.1)':
+  '@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2)':
     dependencies:
       '@react-native-community/cli-clean': 20.2.0
-      '@react-native-community/cli-config': 20.2.0
-      '@react-native-community/cli-doctor': 20.2.0
+      '@react-native-community/cli-config': 20.2.0(typescript@7.0.2)
+      '@react-native-community/cli-doctor': 20.2.0(typescript@7.0.2)
       '@react-native-community/cli-server-api': 20.2.0(supports-color@8.1.1)
       '@react-native-community/cli-tools': 20.2.0
       '@react-native-community/cli-types': 20.2.0
@@ -4328,7 +4414,7 @@ snapshots:
       tinyglobby: 0.2.16
       yargs: 17.7.2
 
-  '@react-native/community-cli-plugin@0.88.0(@react-native-community/cli@20.2.0(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(supports-color@8.1.1)':
+  '@react-native/community-cli-plugin@0.88.0(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(supports-color@8.1.1)':
     dependencies:
       '@react-native/asset-utils': 0.88.0
       '@react-native/dev-middleware': 0.88.0(supports-color@8.1.1)
@@ -4338,7 +4424,7 @@ snapshots:
       metro: 0.87.1(supports-color@8.1.1)
       semver: 7.8.1
     optionalDependencies:
-      '@react-native-community/cli': 20.2.0(supports-color@8.1.1)
+      '@react-native-community/cli': 20.2.0(supports-color@8.1.1)(typescript@7.0.2)
       '@react-native/metro-config': 0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1)
     transitivePeerDependencies:
       - bufferutil
@@ -4401,12 +4487,12 @@ snapshots:
 
   '@react-native/typescript-config@0.88.0': {}
 
-  '@react-native/virtualized-lists@0.88.0(@types/react@19.3.0)(react-native@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1))(react@19.3.1)':
+  '@react-native/virtualized-lists@0.88.0(@types/react@19.3.0)(react-native@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1))(react@19.3.1)':
     dependencies:
       invariant: 2.2.4
       nullthrows: 1.1.1
       react: 19.3.1
-      react-native: 0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1)
+      react-native: 0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1)
     optionalDependencies:
       '@types/react': 19.3.0
 
@@ -4609,36 +4695,65 @@ snapshots:
     dependencies:
       '@types/yargs-parser': 21.0.3
 
-  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260421.2':
+  '@typescript/typescript-aix-ppc64@7.0.2':
     optional: true
 
-  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260421.2':
+  '@typescript/typescript-darwin-arm64@7.0.2':
     optional: true
 
-  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260421.2':
+  '@typescript/typescript-darwin-x64@7.0.2':
     optional: true
 
-  '@typescript/native-preview-linux-arm@7.0.0-dev.20260421.2':
+  '@typescript/typescript-freebsd-arm64@7.0.2':
     optional: true
 
-  '@typescript/native-preview-linux-x64@7.0.0-dev.20260421.2':
+  '@typescript/typescript-freebsd-x64@7.0.2':
     optional: true
 
-  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260421.2':
+  '@typescript/typescript-linux-arm64@7.0.2':
     optional: true
 
-  '@typescript/native-preview-win32-x64@7.0.0-dev.20260421.2':
+  '@typescript/typescript-linux-arm@7.0.2':
     optional: true
 
-  '@typescript/native-preview@7.0.0-dev.20260421.2':
-    optionalDependencies:
-      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20260421.2
-      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20260421.2
-      '@typescript/native-preview-linux-arm': 7.0.0-dev.20260421.2
-      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20260421.2
-      '@typescript/native-preview-linux-x64': 7.0.0-dev.20260421.2
-      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260421.2
-      '@typescript/native-preview-win32-x64': 7.0.0-dev.20260421.2
+  '@typescript/typescript-linux-loong64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-mips64el@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-ppc64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-riscv64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-s390x@7.0.2':
+    optional: true
+
+  '@typescript/typescript-linux-x64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-netbsd-arm64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-netbsd-x64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-openbsd-arm64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-openbsd-x64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-sunos-x64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-win32-arm64@7.0.2':
+    optional: true
+
+  '@typescript/typescript-win32-x64@7.0.2':
+    optional: true
 
   '@vitest/expect@4.1.6':
     dependencies:
@@ -4986,12 +5101,14 @@ snapshots:
     dependencies:
       browserslist: 4.28.2
 
-  cosmiconfig@9.0.1:
+  cosmiconfig@9.0.1(typescript@7.0.2):
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
       js-yaml: 4.1.1
       parse-json: 5.2.0
+    optionalDependencies:
+      typescript: 7.0.2
 
   cross-spawn@7.0.6:
     dependencies:
@@ -6026,19 +6143,19 @@ snapshots:
 
   react-is@18.3.1: {}
 
-  react-native-safe-area-context@5.10.1(react-native@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1))(react@19.3.1):
+  react-native-safe-area-context@5.10.1(react-native@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1))(react@19.3.1):
     dependencies:
       react: 19.3.1
-      react-native: 0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1)
+      react-native: 0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1)
 
-  react-native@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1):
+  react-native@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1):
     dependencies:
       '@react-native/asset-utils': 0.88.0
       '@react-native/codegen': 0.88.0(@babel/core@7.29.0(supports-color@8.1.1))
-      '@react-native/community-cli-plugin': 0.88.0(@react-native-community/cli@20.2.0(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(supports-color@8.1.1)
+      '@react-native/community-cli-plugin': 0.88.0(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(supports-color@8.1.1)
       '@react-native/gradle-plugin': 0.88.0
       '@react-native/normalize-colors': 0.88.0
-      '@react-native/virtualized-lists': 0.88.0(@types/react@19.3.0)(react-native@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1))(react@19.3.1)
+      '@react-native/virtualized-lists': 0.88.0(@types/react@19.3.0)(react-native@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.88.0(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1))(react@19.3.1)
       anser: 1.4.10
       ansi-regex: 5.0.1
       base64-js: 1.5.1
@@ -6130,7 +6247,7 @@ snapshots:
 
   reusify@1.1.0: {}
 
-  rolldown-plugin-dts@0.28.8(@typescript/native-preview@7.0.0-dev.20260421.2)(rolldown@1.2.15):
+  rolldown-plugin-dts@0.28.8(rolldown@1.2.15)(typescript@7.0.2):
     dependencies:
       dts-resolver: 3.0.0
       get-tsconfig: 5.0.0-beta.6
@@ -6140,7 +6257,7 @@ snapshots:
       yuku-codegen: 0.19.0
       yuku-parser: 0.19.0
     optionalDependencies:
-      '@typescript/native-preview': 7.0.0-dev.20260421.2
+      typescript: 7.0.2
     transitivePeerDependencies:
       - oxc-resolver
 
@@ -6438,7 +6555,7 @@ snapshots:
 
   tree-kill@1.2.2: {}
 
-  tsdown@0.23.1(@arethetypeswrong/core@0.18.5)(@typescript/native-preview@7.0.0-dev.20260421.2)(publint@0.3.25):
+  tsdown@0.23.1(@arethetypeswrong/core@0.18.5)(publint@0.3.25)(typescript@7.0.2):
     dependencies:
       cac: 7.1.0
       defu: 6.1.7
@@ -6448,7 +6565,7 @@ snapshots:
       obug: 3.0.0
       picomatch: 4.0.7
       rolldown: 1.2.15
-      rolldown-plugin-dts: 0.28.8(@typescript/native-preview@7.0.0-dev.20260421.2)(rolldown@1.2.15)
+      rolldown-plugin-dts: 0.28.8(rolldown@1.2.15)(typescript@7.0.2)
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
       tree-kill: 1.2.2
@@ -6457,6 +6574,7 @@ snapshots:
     optionalDependencies:
       '@arethetypeswrong/core': 0.18.5
       publint: 0.3.25
+      typescript: 7.0.2
     transitivePeerDependencies:
       - '@typescript/native-preview'
       - '@volar/typescript'
@@ -6475,6 +6593,29 @@ snapshots:
       mime-types: 3.0.2
 
   typescript@5.6.1-rc: {}
+
+  typescript@7.0.2:
+    optionalDependencies:
+      '@typescript/typescript-aix-ppc64': 7.0.2
+      '@typescript/typescript-darwin-arm64': 7.0.2
+      '@typescript/typescript-darwin-x64': 7.0.2
+      '@typescript/typescript-freebsd-arm64': 7.0.2
+      '@typescript/typescript-freebsd-x64': 7.0.2
+      '@typescript/typescript-linux-arm': 7.0.2
+      '@typescript/typescript-linux-arm64': 7.0.2
+      '@typescript/typescript-linux-loong64': 7.0.2
+      '@typescript/typescript-linux-mips64el': 7.0.2
+      '@typescript/typescript-linux-ppc64': 7.0.2
+      '@typescript/typescript-linux-riscv64': 7.0.2
+      '@typescript/typescript-linux-s390x': 7.0.2
+      '@typescript/typescript-linux-x64': 7.0.2
+      '@typescript/typescript-netbsd-arm64': 7.0.2
+      '@typescript/typescript-netbsd-x64': 7.0.2
+      '@typescript/typescript-openbsd-arm64': 7.0.2
+      '@typescript/typescript-openbsd-x64': 7.0.2
+      '@typescript/typescript-sunos-x64': 7.0.2
+      '@typescript/typescript-win32-arm64': 7.0.2
+      '@typescript/typescript-win32-x64': 7.0.2
 
   unconfig-core@7.5.0:
     dependencies:
