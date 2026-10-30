@@ -7,8 +7,8 @@
   "scripts": {
     "lint": "pnpm -r lint && oxlint --type-aware scripts *.config.ts",
     "lint:fix": "pnpm -r lint:fix && oxlint --type-aware --fix scripts *.config.ts",
-    "format": "pnpm -r format && oxfmt scripts *.config.ts",
-    "format:check": "pnpm -r format:check && oxfmt --check scripts *.config.ts",
+    "format": "pnpm -r format && oxfmt scripts .github *.config.ts",
+    "format:check": "pnpm -r format:check && oxfmt --check scripts .github *.config.ts",
     "typecheck": "tsgo --noEmit && tsgo --noEmit -p packages/react-native && tsgo --noEmit -p packages/react-native/tsconfig.tests.json && pnpm --filter RNExample typecheck",
     "build": "tsdown",
     "test": "pnpm -r --if-present test",
@@ -28,5 +28,5 @@
   "engines": {
     "node": ">=24.0.0"
   },
-  "packageManager": "pnpm@11.1.2+sha512.415a1cc25974731e75455c1468371be74c5aa5fb7621b50d4056d222451609f11412f23fd602e6169f1e060466641f798597e1be961a10688836a67b16569499"
+  "packageManager": "pnpm@11.28.8+sha512.f6988a32046b9a3f78d7d7ee0747926bbe905ff9dff73bf19abb87bd7d1906a2ac90d93f73be32b5f9e14c2899569bcb0c9c5ec8a19e083f5d71bbab6dd9e0b8"
 }
