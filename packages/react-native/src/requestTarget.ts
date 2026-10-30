@@ -24,8 +24,16 @@ export function serverLocationOf(baseUrl: string): ServerLocation {
   return { origin, basePath: path }
 }
 
+function withoutTrailingSlashes(path: string): string {
+  let end = path.length
+  while (end > 0 && path[end - 1] === '/') {
+    end--
+  }
+  return path.slice(0, end)
+}
+
 export function normalizeBaseUrl(server: ServerLocation): string {
-  return normalizeOrigin(server.origin) + server.basePath.replace(/\/+$/, '')
+  return normalizeOrigin(server.origin) + withoutTrailingSlashes(server.basePath)
 }
 
 /** Characters no HTTP stack re-encodes; Android re-encodes `'` in queries. */
