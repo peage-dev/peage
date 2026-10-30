@@ -55,6 +55,18 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
+  tests:
+    name: Tests
+    needs: test
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - run: test "$RESULT" = success
+        env:
+          RESULT: ${{ needs.test.result }}
+
   workflows:
     name: Audit workflows
     runs-on: ubuntu-24.04
