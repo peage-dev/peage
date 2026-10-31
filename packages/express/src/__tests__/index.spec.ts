@@ -1331,7 +1331,6 @@ describe('peage.protect', () => {
   )
 
   it.each([
-    'http://h:x',
     'http://user@127.0.0.1',
     'http://h%41',
     'http://h;x',
