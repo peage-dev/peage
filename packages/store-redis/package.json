@@ -1,6 +1,7 @@
 {
   "name": "@peage/store-redis",
   "version": "0.1.0",
+  "description": "Péage store keeping challenges and registered keys in Redis.",
   "license": "MIT",
   "repository": {
     "type": "git",

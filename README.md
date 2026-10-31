@@ -9,8 +9,7 @@ TypeScript libraries that check requests to your API come from your iOS or
 Android app, using Apple's App Attest and Google's Play Integrity. A React
 Native client signs the requests and an Express middleware verifies them.
 
-> **Pre-release.** Nothing is published to npm yet, and APIs may change before
-> 0.1.
+> **0.x.** APIs may change between minor versions.
 
 ## Packages
 

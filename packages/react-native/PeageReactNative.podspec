@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
   s.license      = "MIT"
   s.authors      = { "Péage" => "say.hi@peage.dev" }
   s.platforms    = { :ios => min_ios_version_supported }
-  s.source       = { :git => "https://github.com/peage-dev/peage.git", :tag => "#{s.version}" }
+  s.source       = { :git => "https://github.com/peage-dev/peage.git", :tag => "v#{s.version}" }
   s.source_files = "ios/**/*.{h,m,mm,swift}"
 
   install_modules_dependencies(s)

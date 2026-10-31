@@ -37,17 +37,20 @@ catalog:
   '@changesets/cli': 3.0.3
   publint: 0.3.25
   '@arethetypeswrong/core': 0.18.5
+  react-native-safe-area-context: ^5.10.1
+  '@babel/core': ^7.29.7
+  '@babel/runtime': ^7.29.10
+  '@react-native-community/cli': 20.2.0
+  '@react-native-community/cli-platform-android': 20.2.0
+  '@react-native-community/cli-platform-ios': 20.2.0
+  '@react-native/babel-preset': 0.88.0
+  '@react-native/codegen': 0.88.0
+  '@react-native/gradle-plugin': 0.88.0
+  '@react-native/metro-config': 0.88.0
+  '@react-native/typescript-config': 0.88.0
+  '@types/react': ^19
 overrides:
-  vite: 'catalog:'
-  vitest: 'catalog:'
   # Babel, which react-native's Metro toolchain pulls in, asks for semver ^6;
   # semver@6.3.1 lost provenance vs. earlier versions and trips the
   # `trustPolicy: no-downgrade` rule.
   semver: '^7'
-peerDependencyRules:
-  allowAny:
-    - vite
-    - vitest
-  allowedVersions:
-    vite: '*'
-    vitest: '*'

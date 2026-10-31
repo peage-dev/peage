@@ -12,7 +12,7 @@ advisory that credits the reporter.
 
 ## Supported versions
 
-Until 0.1, only the latest commit on `main`. After that, the latest release.
+The latest release.
 
 ## Scope
 

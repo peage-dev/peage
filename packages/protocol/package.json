@@ -1,6 +1,7 @@
 {
   "name": "@peage/protocol",
   "version": "0.1.0",
+  "description": "Constants and encodings shared by the Péage client and server.",
   "license": "MIT",
   "repository": {
     "type": "git",
