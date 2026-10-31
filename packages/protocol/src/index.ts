@@ -7,6 +7,8 @@ export const HTTP_HEADER_KEY_ID = 'X-Peage-KeyId'
 export const HTTP_HEADER_ASSERTION = 'X-Peage-Assertion'
 /** Carries `PROTOCOL_VERSION`. */
 export const HTTP_HEADER_PROTOCOL_VERSION = 'X-Peage-Protocol-Version'
+/** Carries a development debug token, sent instead of a key and an assertion. */
+export const HTTP_HEADER_DEBUG_TOKEN = 'X-Peage-Debug-Token'
 
 const AUTHENTICATE_SCHEME = 'Peage'
 const AUTHENTICATE_ERROR_PATTERN = new RegExp(`^${AUTHENTICATE_SCHEME}\\s+error="([a-z_]+)"$`)

@@ -2,31 +2,39 @@ import type { AttestedKeyRecord, IssuedChallenge } from '@peage/core'
 
 import type { RedisStore, RedisStoreOptions } from './types.ts'
 
-import { assertAttestedKeyRecord, assertIssuedChallenge } from './asserters.ts'
+import { isAttestedKeyRecord, isIssuedChallenge } from './guards.ts'
 
-export type { RedisCommands, RedisStore, RedisStoreOptions } from './types.ts'
+export { fromIoredis, fromNodeRedis } from './adapters.ts'
+export type {
+  IoredisClient,
+  NodeRedisClient,
+  RedisCommands,
+  RedisStore,
+  RedisStoreOptions,
+} from './types.ts'
 
-function parseStoredJson(json: string, name: string): unknown {
+function parseStoredJson(json: string): unknown {
   try {
     return JSON.parse(json)
-  } catch (error) {
-    throw new Error(`Péage found a malformed ${name} in Redis`, { cause: error })
+  } catch {
+    return undefined
   }
 }
 
-function parseChallenge(json: string): IssuedChallenge {
-  const value = parseStoredJson(json, 'challenge')
-  assertIssuedChallenge(value)
-  return value
+function parseChallenge(json: string): IssuedChallenge | null {
+  const value = parseStoredJson(json)
+  return isIssuedChallenge(value) ? value : null
 }
 
-function parseAttestedKeyRecord(json: string): AttestedKeyRecord {
-  const value = parseStoredJson(json, 'key record')
-  assertAttestedKeyRecord(value)
-  return value
+function parseAttestedKeyRecord(json: string): AttestedKeyRecord | null {
+  const value = parseStoredJson(json)
+  return isAttestedKeyRecord(value) ? value : null
 }
 
-/** Challenges expire with Redis's own TTL; key records are kept until deleted. */
+/**
+ * Challenges expire with Redis's own TTL; key records are kept until deleted.
+ * A stored challenge or key record that doesn't parse is treated as absent.
+ */
 export function createRedisStore(options: RedisStoreOptions): RedisStore {
   const { redis } = options
   const keyPrefix = options.keyPrefix ?? 'peage:'

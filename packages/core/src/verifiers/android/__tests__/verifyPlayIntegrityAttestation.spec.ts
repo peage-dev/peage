@@ -89,6 +89,14 @@ function buildAttestation(
   }
 }
 
+function withTokenParts(rewrite: (parts: string[]) => void) {
+  const { certificateChain, attestation } = buildAttestation()
+  const { integrityToken } = JSON.parse(new TextDecoder().decode(attestation.proof))
+  const parts = integrityToken.split('.')
+  rewrite(parts)
+  return { ...attestation, proof: playIntegrityProof(parts.join('.'), certificateChain) }
+}
+
 describe('verifyPlayIntegrityAttestation', () => {
   it("returns the device key and its chain's serial numbers for a valid attestation", () => {
     const { deviceKey, certificateChain, attestation } = buildAttestation()
@@ -400,14 +408,6 @@ describe('verifyPlayIntegrityAttestation', () => {
   })
 
   describe('tampered tokens', () => {
-    function withTokenParts(rewrite: (parts: string[]) => void) {
-      const { certificateChain, attestation } = buildAttestation()
-      const { integrityToken } = JSON.parse(new TextDecoder().decode(attestation.proof))
-      const parts = integrityToken.split('.')
-      rewrite(parts)
-      return { ...attestation, proof: playIntegrityProof(parts.join('.'), certificateChain) }
-    }
-
     it('rejects a token missing a segment', () => {
       const attestation = withTokenParts((parts) => parts.pop())
       expect(() => verifyPlayIntegrityAttestation(attestation, OPTIONS, NOT_REVOKED)).toThrow(

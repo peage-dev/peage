@@ -2,7 +2,7 @@ import { isRecord } from '@peage/protocol'
 
 import type { FailedRegistrations, NativeAttest } from './types.ts'
 
-import { PeageClientError } from './errors.ts'
+import { abortErrorOf, PeageClientError } from './errors.ts'
 import {
   authenticateErrorOf,
   declaredCharsets,
@@ -82,15 +82,9 @@ export function assertStringBodyIsUtf8(
 }
 
 export function assertNotAborted(signal: AbortSignal | undefined): void {
-  if (!signal?.aborted) {
-    return
+  if (signal?.aborted) {
+    throw abortErrorOf(signal)
   }
-  if (signal.reason instanceof Error) {
-    throw signal.reason
-  }
-  const error = new Error('The request was aborted')
-  error.name = 'AbortError'
-  throw error
 }
 
 export async function assertSupported(native: NativeAttest): Promise<void> {

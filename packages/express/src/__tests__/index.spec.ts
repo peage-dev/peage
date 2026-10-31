@@ -1,6 +1,7 @@
 import {
   concatBytes,
   HTTP_HEADER_ASSERTION,
+  HTTP_HEADER_DEBUG_TOKEN,
   HTTP_HEADER_KEY_ID,
   PLATFORM_APP_ATTEST,
   PLATFORM_PLAY_INTEGRITY,
@@ -118,8 +119,8 @@ async function makeAppWithKey(options: AppOptions = {}): Promise<Express> {
   return app
 }
 
-function makeAndroidApp() {
-  const peage = createPeage({
+function createAndroidPeage() {
+  return createPeage({
     playIntegrity: {
       packageName: PACKAGE_NAME,
       decryptionKey: playIntegrityKeys.decryptionKey,
@@ -131,7 +132,10 @@ function makeAndroidApp() {
     },
     store: createMemoryStore(),
   })
+}
 
+function makeAndroidApp() {
+  const peage = createAndroidPeage()
   const app = express()
   app.post('/peage/challenge', peage.challenge)
   app.post('/peage/solve', peage.solve)
@@ -652,6 +656,31 @@ describe('peage.solve', () => {
     const errors = recordErrors(app)
     const response = await abortUpload(await serve(app), '/peage/solve')
     expect({ status: response.statusCode, errors }).toStrictEqual({ status: 400, errors: [] })
+  })
+})
+
+describe('peage.router', () => {
+  it('serves the challenge and solve endpoints under the prefix it is mounted at', async () => {
+    const app = express()
+    app.use('/v1', createAndroidPeage().router)
+    const server = await serve(app)
+    const deviceKey = newDeviceKey()
+
+    const challengeResponse = await request(server)
+      .post('/v1/peage/challenge')
+      .send({ platform: PLATFORM_PLAY_INTEGRITY })
+    const { challenge } = challengeResponse.body
+    const solveResponse = await request(server)
+      .post('/v1/peage/solve')
+      .send({
+        platform: PLATFORM_PLAY_INTEGRITY,
+        challenge,
+        keyId: keyIdFor(deviceKey),
+        proof: androidProof(challenge, deviceKey),
+      })
+
+    expect(challengeResponse.status).toBe(200)
+    expect(solveResponse.status).toBe(204)
   })
 })
 
@@ -1356,22 +1385,22 @@ describe('peage.protect', () => {
   })
 })
 
-describe('verifiedRequestOf', () => {
-  async function makeVerifiedRequestApp() {
-    const store = createMemoryStore()
-    await registerTestKey(store)
-    const peage = createPeage({ appAttest: { appId: APP_ID, environment: 'development' }, store })
-    const app = express()
-    app.get('/api/hello', peage.protect, (_req, res) => {
-      res.json(verifiedRequestOf(res))
-    })
-    app.get('/api/unprotected', (_req, res) => {
-      res.json(verifiedRequestOf(res))
-    })
-    const errors = recordErrors(app)
-    return { app, errors }
-  }
+async function makeVerifiedRequestApp() {
+  const store = createMemoryStore()
+  await registerTestKey(store)
+  const peage = createPeage({ appAttest: { appId: APP_ID, environment: 'development' }, store })
+  const app = express()
+  app.get('/api/hello', peage.protect, (_req, res) => {
+    res.json(verifiedRequestOf(res))
+  })
+  app.get('/api/unprotected', (_req, res) => {
+    res.json(verifiedRequestOf(res))
+  })
+  const errors = recordErrors(app)
+  return { app, errors }
+}
 
+describe('verifiedRequestOf', () => {
   it('returns the request protect verified', async () => {
     const { app } = await makeVerifiedRequestApp()
     const response = await request(await serve(app))
@@ -1386,5 +1415,83 @@ describe('verifiedRequestOf', () => {
     const response = await request(await serve(app)).get('/api/unprotected')
     expect(response.status).toBe(500)
     expect(errors).toStrictEqual([new Error('Péage protect must run before this handler')])
+  })
+})
+
+describe('debug token', () => {
+  const DEBUG_TOKEN = 'development-debug-token-0123456789'
+
+  function makeDebugApp() {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const peage = createPeage({
+      appAttest: { appId: APP_ID, environment: 'development' },
+      debugToken: DEBUG_TOKEN,
+      store: createMemoryStore(),
+    })
+    const app = express()
+    app.get('/api/hello', peage.protect, (_req, res) => {
+      res.json({ peage: verifiedRequestOf(res) })
+    })
+    app.post('/api/echo', peage.protect, (req, res) => {
+      res.json({ received: req.body })
+    })
+    return app
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('lets a request carrying it through without Péage key and assertion headers', async () => {
+    const server = await serve(makeDebugApp())
+    const hello = await request(server).get('/api/hello').set(HTTP_HEADER_DEBUG_TOKEN, DEBUG_TOKEN)
+    const echo = await request(server)
+      .post('/api/echo')
+      .set(HTTP_HEADER_DEBUG_TOKEN, DEBUG_TOKEN)
+      .send({ hello: 'world' })
+
+    expect(hello.status).toBe(200)
+    expect(hello.body.peage).toMatchObject({ debug: true })
+    expect(echo.status).toBe(200)
+    expect(echo.body).toStrictEqual({ received: { hello: 'world' } })
+  })
+
+  it('rejects a request carrying another token with 401 invalid_signature', async () => {
+    const response = await request(await serve(makeDebugApp()))
+      .get('/api/hello')
+      .set(HTTP_HEADER_DEBUG_TOKEN, `${DEBUG_TOKEN}x`)
+    expect(response.status).toBe(401)
+    expect(response.headers['www-authenticate']).toBe('Peage error="invalid_signature"')
+  })
+
+  it('treats an empty debug token header like a missing one', async () => {
+    const response = await request(await serve(makeDebugApp()))
+      .get('/api/hello')
+      .set(HTTP_HEADER_DEBUG_TOKEN, '')
+    expect(response.status).toBe(401)
+    expect(response.headers['www-authenticate']).toBe('Peage')
+  })
+
+  it('is ignored when not configured, so a request carrying only it misses Péage headers', async () => {
+    const { app } = makeApp()
+    const response = await request(await serve(app))
+      .get('/api/hello')
+      .set(HTTP_HEADER_DEBUG_TOKEN, DEBUG_TOKEN)
+    expect(response.status).toBe(401)
+    expect(response.headers['www-authenticate']).toBe('Peage')
+  })
+
+  it('is refused at startup with a production config or a token under 32 characters', () => {
+    const store = createMemoryStore()
+    expect(() =>
+      createPeage({ appAttest: { appId: APP_ID }, debugToken: DEBUG_TOKEN, store }),
+    ).toThrow(/environment 'development'/)
+    expect(() =>
+      createPeage({
+        appAttest: { appId: APP_ID, environment: 'development' },
+        debugToken: 'a'.repeat(31),
+        store,
+      }),
+    ).toThrow(/at least 32 characters/)
   })
 })

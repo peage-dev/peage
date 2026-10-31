@@ -20,8 +20,25 @@ export type RedisStore = PeageStore & {
 
 /** Options for `createRedisStore`. */
 export type RedisStoreOptions = {
-  /** The Redis client, adapted to `RedisCommands`. */
+  /** The Redis client, adapted to `RedisCommands`, e.g. with `fromIoredis` or `fromNodeRedis`. */
   redis: RedisCommands
   /** Prepended to every Redis key. Defaults to `peage:`. */
   keyPrefix?: string
+}
+
+/** An ioredis 5+ `Redis` or `Cluster` instance. */
+export type IoredisClient = {
+  get(key: string): Promise<string | null>
+  getdel(key: string): Promise<string | null>
+  set(key: string, value: string): Promise<unknown>
+  set(key: string, value: string, expiryToken: 'PXAT', expiresAt: number): Promise<unknown>
+  del(key: string): Promise<unknown>
+}
+
+/** A node-redis (`redis`) 4+ client or cluster. */
+export type NodeRedisClient = {
+  get(key: string): Promise<string | null>
+  getDel(key: string): Promise<string | null>
+  set(key: string, value: string, options?: { PXAT: number }): Promise<unknown>
+  del(key: string): Promise<unknown>
 }

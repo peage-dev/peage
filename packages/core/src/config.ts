@@ -4,7 +4,11 @@ import type { AppAttestConfig, PeageConfig } from './types.ts'
 import type { ResolvedPlayIntegrityConfig } from './verifiers/android/types.ts'
 import type { VerifierConfig } from './verifiers/types.ts'
 
-import { assertSomePlatformConfigured, assertValidAppAttestConfig } from './asserters.ts'
+import {
+  assertSomePlatformConfigured,
+  assertValidAppAttestConfig,
+  assertValidDebugToken,
+} from './asserters.ts'
 import { resolvePlayIntegrityConfig } from './verifiers/android/config.ts'
 
 export function resolveVerifierConfig(config: PeageConfig): VerifierConfig {
@@ -12,6 +16,7 @@ export function resolveVerifierConfig(config: PeageConfig): VerifierConfig {
   if (config.appAttest) {
     assertValidAppAttestConfig(config.appAttest)
   }
+  assertValidDebugToken(config)
   return {
     appAttest: config.appAttest,
     playIntegrity: config.playIntegrity && resolvePlayIntegrityConfig(config.playIntegrity),
@@ -41,5 +46,8 @@ export function warnAboutUnsafeSettings(config: PeageConfig): void {
   }
   if (config.playIntegrity?.keyAttestation?.trustedRoots) {
     console.warn("[peage] WARNING: Key attestation trusts the configured roots instead of Google's")
+  }
+  if (config.debugToken !== undefined) {
+    console.warn('[peage] WARNING: Requests carrying the debug token skip attestation')
   }
 }

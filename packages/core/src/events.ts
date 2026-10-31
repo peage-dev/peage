@@ -1,12 +1,13 @@
 import { isPlatform } from '@peage/protocol'
 
 import type { PeageError } from './errors.ts'
-import type { PeageEvent, RegistrationRequest, SignedRequest } from './types.ts'
+import type { PeageEvent, RegistrationRequest, SignedRequest, VerifiedRequest } from './types.ts'
 
 import { isCanonicalKeyId } from './guards.ts'
 
 type RegistrationRejectedEvent = Extract<PeageEvent, { type: 'registration.rejected' }>
 type RequestRejectedEvent = Extract<PeageEvent, { type: 'request.rejected' }>
+type RequestVerifiedEvent = Extract<PeageEvent, { type: 'request.verified' }>
 
 export function registrationRejectedEvent(
   request: RegistrationRequest,
@@ -31,4 +32,16 @@ export function requestRejectedEvent(
     event.keyId = request.keyId
   }
   return event
+}
+
+export function requestVerifiedEvent(verified: VerifiedRequest): RequestVerifiedEvent {
+  if (verified.debug) {
+    return { type: 'request.verified', debug: true }
+  }
+  return {
+    type: 'request.verified',
+    debug: false,
+    keyId: verified.keyId,
+    platform: verified.platform,
+  }
 }

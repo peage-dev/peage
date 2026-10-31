@@ -22,6 +22,7 @@ import type {
   AppAttestConfig,
   AttestedKeyRecord,
   IssuedChallenge,
+  PeageConfig,
   PeageEvent,
   PeageStore,
 } from '../types.ts'
@@ -442,20 +443,20 @@ describe('solveChallenge', () => {
   })
 })
 
+async function issueChallenge(store: PeageStore, platform: Platform): Promise<void> {
+  await store.saveChallenge({
+    value: IOS_27_ATTESTATION.challenge,
+    platform,
+    expiresAt: Date.now() + CHALLENGE_TTL_MS,
+  })
+}
+
 describe('App Attest with a real iOS 27 device', () => {
   const registration = {
     platform: PLATFORM_APP_ATTEST,
     challenge: IOS_27_ATTESTATION.challenge,
     keyId: IOS_27_DEVICE.keyId,
     proof: IOS_27_ATTESTATION.proof,
-  }
-
-  async function issueChallenge(store: PeageStore, platform: Platform): Promise<void> {
-    await store.saveChallenge({
-      value: IOS_27_ATTESTATION.challenge,
-      platform,
-      expiresAt: Date.now() + CHALLENGE_TTL_MS,
-    })
   }
 
   beforeEach(() => {
@@ -480,6 +481,7 @@ describe('App Attest with a real iOS 27 device', () => {
       readBody: async () => IOS_27_ASSERTION.body,
     })
     expect(verified).toStrictEqual({
+      debug: false,
       keyId: IOS_27_DEVICE.keyId,
       platform: PLATFORM_APP_ATTEST,
       body: IOS_27_ASSERTION.body,
@@ -530,11 +532,21 @@ describe('verifyAssertion', () => {
       readBody,
     })
 
-    expect(verified).toStrictEqual({ keyId: record.keyId, platform: PLATFORM_PLAY_INTEGRITY, body })
+    expect(verified).toStrictEqual({
+      debug: false,
+      keyId: record.keyId,
+      platform: PLATFORM_PLAY_INTEGRITY,
+      body,
+    })
     expect(readBody).toHaveBeenCalledTimes(1)
     expect(events).toStrictEqual([
       { type: 'registration.accepted', keyId: record.keyId, platform: PLATFORM_PLAY_INTEGRITY },
-      { type: 'request.verified', keyId: record.keyId, platform: PLATFORM_PLAY_INTEGRITY },
+      {
+        type: 'request.verified',
+        debug: false,
+        keyId: record.keyId,
+        platform: PLATFORM_PLAY_INTEGRITY,
+      },
     ])
   })
 
@@ -613,8 +625,9 @@ describe('verifyAssertion', () => {
     expect(loadAttestedKey).not.toHaveBeenCalled()
   })
 
-  it('treats a stored key that cannot be imported as a server failure', async () => {
-    const { peage, keys } = createAndroidPeage()
+  it('answers a stored key that cannot be imported as unknown, without reading the body', async () => {
+    const { peage, keys, events } = createAndroidPeage()
+    const readBody = vi.fn(readEmptyBody)
     keys.set(keyId, {
       keyId,
       platform: PLATFORM_PLAY_INTEGRITY,
@@ -623,7 +636,54 @@ describe('verifyAssertion', () => {
       publicKey: 'AAAA',
       attestedAt: 0,
     })
-    await expect(
+    await expectPeageError(
+      peage.verifyAssertion({
+        keyId,
+        method: 'GET',
+        path: '/',
+        assertion: new Uint8Array(),
+        readBody,
+      }),
+      'KEY_UNKNOWN',
+    )
+    expect(readBody).not.toHaveBeenCalled()
+    expect(events).toStrictEqual([
+      {
+        type: 'request.rejected',
+        keyId,
+        error: expect.objectContaining({ message: 'Stored key record is malformed' }),
+      },
+    ])
+  })
+
+  it('lets a device whose stored key cannot be imported register again, replacing the record', async () => {
+    const { peage, keys } = createAndroidPeage()
+    const deviceKey = newDeviceKey()
+    const malformedKeyId = keyIdFor(deviceKey)
+    keys.set(malformedKeyId, {
+      keyId: malformedKeyId,
+      platform: PLATFORM_PLAY_INTEGRITY,
+      appId: PACKAGE_NAME,
+      environment: 'production',
+      publicKey: 'AAAA',
+      attestedAt: 0,
+    })
+    const challenge = await peage.createChallenge(PLATFORM_PLAY_INTEGRITY)
+    const record = await peage.solveChallenge(androidRegistration(challenge, deviceKey))
+    expect(keys.get(malformedKeyId)).toStrictEqual(record)
+  })
+
+  it('answers a stored key that cannot be imported, on a platform no longer configured, with PLATFORM_DISABLED', async () => {
+    const { peage, keys } = createIosPeage()
+    keys.set(keyId, {
+      keyId,
+      platform: PLATFORM_PLAY_INTEGRITY,
+      appId: PACKAGE_NAME,
+      environment: 'production',
+      publicKey: 'AAAA',
+      attestedAt: 0,
+    })
+    await expectPeageError(
       peage.verifyAssertion({
         keyId,
         method: 'GET',
@@ -631,7 +691,8 @@ describe('verifyAssertion', () => {
         assertion: new Uint8Array(),
         readBody: readEmptyBody,
       }),
-    ).rejects.toSatisfy((error) => !(error instanceof PeageError))
+      'PLATFORM_DISABLED',
+    )
   })
 
   it.each([
@@ -788,5 +849,128 @@ describe('verifyAssertion', () => {
       const staleBucket = assertionBucket(receivedAt / 1000) - 2 * ASSERTION_BUCKET_SECONDS
       await expectPeageError(verifySlowUpload(staleBucket), 'SIGNATURE_INVALID')
     })
+  })
+})
+
+function debugRequest(debugToken: string, readBody: () => Promise<Uint8Array>) {
+  return {
+    keyId: '',
+    method: 'POST',
+    path: '/api/echo',
+    assertion: new Uint8Array(),
+    readBody,
+    debugToken,
+  }
+}
+
+describe('debug token', () => {
+  const DEBUG_TOKEN = 'development-debug-token-0123456789'
+  const DEVELOPMENT_PLAY_INTEGRITY_CONFIG = {
+    ...PLAY_INTEGRITY_CONFIG,
+    allowUnrecognizedApps: true,
+  }
+
+  function createDebugPeage() {
+    const events: PeageEvent[] = []
+    const loadAttestedKey = vi.fn(async () => null)
+    const store: PeageStore = { ...createTestStore().store, loadAttestedKey }
+    const peage = createPeage({
+      appAttest: APP_ATTEST_CONFIG,
+      playIntegrity: DEVELOPMENT_PLAY_INTEGRITY_CONFIG,
+      debugToken: DEBUG_TOKEN,
+      store,
+      onEvent: (event) => events.push(event),
+    })
+    return { peage, events, loadAttestedKey }
+  }
+
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('is refused when App Attest accepts only production attestations', () => {
+    expect(() =>
+      createPeage({
+        appAttest: { appId: IOS_27_DEVICE.appId },
+        debugToken: DEBUG_TOKEN,
+        store: createTestStore().store,
+      }),
+    ).toThrow(/debugToken needs App Attest environment 'development'/)
+  })
+
+  it('is refused when Play Integrity does not allow unrecognized apps', () => {
+    expect(() =>
+      createPeage({
+        appAttest: APP_ATTEST_CONFIG,
+        playIntegrity: PLAY_INTEGRITY_CONFIG,
+        debugToken: DEBUG_TOKEN,
+        store: createTestStore().store,
+      }),
+    ).toThrow(/debugToken needs Play Integrity allowUnrecognizedApps/)
+  })
+
+  it('is refused when shorter than 32 characters', () => {
+    expect(() =>
+      createPeage({
+        appAttest: APP_ATTEST_CONFIG,
+        debugToken: 'a'.repeat(31),
+        store: createTestStore().store,
+      }),
+    ).toThrow(/at least 32 characters/)
+  })
+
+  it('warns that requests carrying it skip attestation', () => {
+    createDebugPeage()
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringMatching(/Requests carrying the debug token skip attestation/),
+    )
+  })
+
+  it('accepts a request carrying it without looking up a key, and reports it', async () => {
+    const { peage, events, loadAttestedKey } = createDebugPeage()
+    const body = new TextEncoder().encode('{"hello":"world"}')
+
+    const verified = await peage.verifyAssertion(debugRequest(DEBUG_TOKEN, async () => body))
+
+    expect(verified).toStrictEqual({ debug: true, body })
+    expect(loadAttestedKey).not.toHaveBeenCalled()
+    expect(events).toStrictEqual([{ type: 'request.verified', debug: true }])
+  })
+
+  it('rejects a request carrying another token as an invalid signature, without reading the body', async () => {
+    const { peage, events } = createDebugPeage()
+    const readBody = vi.fn(readEmptyBody)
+
+    await expectPeageError(
+      peage.verifyAssertion(debugRequest(`${DEBUG_TOKEN}x`, readBody)),
+      'SIGNATURE_INVALID',
+    )
+    expect(readBody).not.toHaveBeenCalled()
+    expect(events).toStrictEqual([{ type: 'request.rejected', error: expect.any(PeageError) }])
+  })
+
+  it('is ignored when not configured, so the request needs a registered key', async () => {
+    const { peage } = createAndroidPeage()
+    const readBody = vi.fn(readEmptyBody)
+    const request = { ...debugRequest(DEBUG_TOKEN, readBody), keyId: keyIdFor(newDeviceKey()) }
+
+    await expectPeageError(peage.verifyAssertion(request), 'KEY_UNKNOWN')
+    expect(readBody).not.toHaveBeenCalled()
+  })
+
+  it('stays ignored when added to the config after createPeage', async () => {
+    const config: PeageConfig = {
+      appAttest: { appId: IOS_27_DEVICE.appId },
+      store: createTestStore().store,
+    }
+    const peage = createPeage(config)
+    config.debugToken = DEBUG_TOKEN
+    const request = { ...debugRequest(DEBUG_TOKEN, readEmptyBody), keyId: keyIdFor(newDeviceKey()) }
+
+    await expectPeageError(peage.verifyAssertion(request), 'KEY_UNKNOWN')
   })
 })

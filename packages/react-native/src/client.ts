@@ -3,17 +3,18 @@ import {
   canonicalRequestBytes,
   CHALLENGE_PATH,
   HTTP_HEADER_ASSERTION,
+  HTTP_HEADER_DEBUG_TOKEN,
   HTTP_HEADER_KEY_ID,
   HTTP_HEADER_PROTOCOL_VERSION,
   type Platform,
   PROTOCOL_VERSION,
   SOLVE_PATH,
-  toBase64url,
 } from '@peage/protocol'
 
 import type { NativeAttest, PeageClient, PeageClientOptions, RequestToSend } from './types.ts'
 
 import { assertNotAborted } from './asserters.ts'
+import { generateAssertion } from './assertionQueue.ts'
 import { PeageClientError } from './errors.ts'
 import { authenticateErrorOf } from './headers.ts'
 import { callNative, nativeErrorCode, sha256 } from './native.ts'
@@ -55,9 +56,7 @@ async function signWithKey(
     native,
     canonicalRequestBytes({ bucket, method: request.method, path: request.path, bodyDigest }),
   )
-  const assertion = await callNative(() =>
-    native.generateAssertion(keyId, toBase64url(clientDataHash)),
-  )
+  const assertion = await generateAssertion(native, keyId, clientDataHash, request.signal)
 
   return {
     [HTTP_HEADER_KEY_ID]: keyId,
@@ -79,6 +78,7 @@ export function createPeageClientWithNative(
   const keyScope = options.keyScope ?? normalizeBaseUrl(server)
   const maxRegistrationAttempts =
     options.maxRegistrationAttempts ?? DEFAULT_MAX_REGISTRATION_ATTEMPTS
+  const { debugToken } = options
 
   const { register, forgetKey, clearKey } = createRegistration({
     native,
@@ -103,23 +103,27 @@ export function createPeageClientWithNative(
     }
   }
 
-  async function sendSigned(request: RequestToSend) {
-    assertNotAborted(request.signal)
+  function isSupported(): Promise<boolean> {
+    return callNative(() => native.isSupported())
+  }
+
+  async function sendToServer(
+    request: RequestToSend,
+    peageHeaders: Record<string, string>,
+  ): Promise<Response> {
     const headers = new Headers(request.headers)
-    const signed = await sign(request)
-    for (const [name, value] of Object.entries(signed)) {
+    for (const [name, value] of Object.entries(peageHeaders)) {
       headers.set(name, value)
     }
     const url = server.origin + request.path
     try {
-      const response = await fetchFromServer(url, {
+      return await fetchFromServer(url, {
         method: request.method,
         headers,
         body: request.body,
         signal: request.signal,
         credentials: request.credentials,
       })
-      return { response, keyId: signed[HTTP_HEADER_KEY_ID] }
     } catch (error) {
       if (isCancellation(error)) {
         throw error
@@ -130,8 +134,14 @@ export function createPeageClientWithNative(
     }
   }
 
-  async function signedFetch(input: string | URL | Request, init: RequestInit = {}) {
-    const request = await requestToSend(input, init, server)
+  async function sendSigned(request: RequestToSend) {
+    assertNotAborted(request.signal)
+    const signed = await sign(request)
+    const response = await sendToServer(request, signed)
+    return { response, keyId: signed[HTTP_HEADER_KEY_ID] }
+  }
+
+  async function signedFetch(request: RequestToSend): Promise<Response> {
     const first = await sendSigned(request)
     if (!isUnknownKeyResponse(first.response)) {
       return first.response
@@ -141,10 +151,33 @@ export function createPeageClientWithNative(
     return retry.response
   }
 
+  function fetchWithDebugToken(request: RequestToSend, token: string): Promise<Response> {
+    return sendToServer(request, {
+      [HTTP_HEADER_DEBUG_TOKEN]: token,
+      [HTTP_HEADER_PROTOCOL_VERSION]: PROTOCOL_VERSION,
+    })
+  }
+
+  async function debugTokenForUnsupportedDevice(): Promise<string | undefined> {
+    if (debugToken === undefined || (await isSupported())) {
+      return undefined
+    }
+    return debugToken
+  }
+
+  async function peageFetch(input: string | URL | Request, init: RequestInit = {}) {
+    const request = await requestToSend(input, init, server)
+    const token = await debugTokenForUnsupportedDevice()
+    if (token !== undefined) {
+      return fetchWithDebugToken(request, token)
+    }
+    return signedFetch(request)
+  }
+
   return {
-    isSupported: () => callNative(() => native.isSupported()),
+    isSupported,
     register,
-    fetch: signedFetch,
+    fetch: peageFetch,
     clearKey,
   }
 }

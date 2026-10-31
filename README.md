@@ -30,7 +30,7 @@ The server packages need Node.js 22.12 or later. The client needs React Native
 Server:
 
 ```ts
-import { CHALLENGE_PATH, SOLVE_PATH, createPeage, verifiedRequestOf } from '@peage/express'
+import { createPeage, verifiedRequestOf } from '@peage/express'
 import { createMemoryStore } from '@peage/store-memory'
 import express from 'express'
 
@@ -41,14 +41,14 @@ const peage = createPeage({
     decryptionKey: '<base64 key from Play Console>',
     verificationKey: '<base64 key from Play Console>',
   },
-  store: createMemoryStore(), // @peage/store-redis in production
+  store: createMemoryStore(), // createRedisStore({ redis: fromIoredis(client) }) in production
 })
 
 const app = express()
-app.post(CHALLENGE_PATH, peage.challenge)
-app.post(SOLVE_PATH, peage.solve)
+app.use(peage.router)
 app.get('/api/hello', peage.protect, (_req, res) => {
-  res.json({ keyId: verifiedRequestOf(res).keyId })
+  const request = verifiedRequestOf(res)
+  res.json({ keyId: request.debug ? null : request.keyId })
 })
 ```
 
@@ -61,9 +61,16 @@ const peage = createPeageClient({ baseUrl: 'https://api.example.com' })
 const response = await peage.fetch('/api/hello')
 ```
 
-The client registers at `/peage/challenge` and `/peage/solve` under `baseUrl`.
-Set `challengePath` and `solvePath` if you mount `peage.challenge` and
-`peage.solve` elsewhere.
+The client registers at `/peage/challenge` and `/peage/solve` under `baseUrl`,
+where `peage.router` serves them. Set `challengePath` and `solvePath` if you
+mount `peage.challenge` and `peage.solve` elsewhere.
+
+In development, the same `debugToken` on `createPeage` and `createPeageClient`
+lets devices that can't attest, such as the iOS simulator, through. `createPeage`
+refuses it unless it is at least 32 characters and every configured platform
+accepts development builds (App Attest `environment: 'development'`, Play
+Integrity `allowUnrecognizedApps`). Android emulators with the Play Store count
+as able to attest; use an image without Google Play.
 
 ## Development
 

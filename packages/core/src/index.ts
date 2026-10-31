@@ -14,6 +14,7 @@ import {
   assertCanonicalKeyId,
   assertChallengeShape,
   assertChallengeOutstanding,
+  assertDebugTokenMatches,
   assertKeyRegistered,
   assertKeyUsable,
   assertPlatform,
@@ -23,9 +24,9 @@ import {
 import { CHALLENGE_TTL_MS, getRandomChallenge } from './challenges.ts'
 import { platformConfigOf, resolveVerifierConfig, warnAboutUnsafeSettings } from './config.ts'
 import { PeageError, rethrowAs } from './errors.ts'
-import { registrationRejectedEvent, requestRejectedEvent } from './events.ts'
+import { registrationRejectedEvent, requestRejectedEvent, requestVerifiedEvent } from './events.ts'
 import { verifyPlatformAssertion, verifyPlatformAttestation } from './verifiers/index.ts'
-import { importSpkiPublicKey } from './verifiers/keys.ts'
+import { importStoredPublicKey } from './verifiers/keys.ts'
 
 export { PeageError } from './errors.ts'
 export type {
@@ -50,9 +51,19 @@ export type { Platform } from '@peage/protocol'
 export { assertPlatform } from './asserters.ts'
 export { isAttestationEnvironment } from './guards.ts'
 
+async function verifyDebugRequest(
+  request: SignedRequest,
+  receivedToken: string,
+  expectedToken: string,
+): Promise<VerifiedRequest> {
+  assertDebugTokenMatches(receivedToken, expectedToken)
+  return { debug: true, body: await request.readBody() }
+}
+
 /** Validates the config and returns the server core that adapters such as `@peage/express` wrap. */
 export function createPeage(config: PeageConfig): Peage {
   const verifierConfig = resolveVerifierConfig(config)
+  const debugToken = config.debugToken
   warnAboutUnsafeSettings(config)
 
   function emit(event: PeageEvent): void {
@@ -128,16 +139,23 @@ export function createPeage(config: PeageConfig): Peage {
     assertKeyRegistered(record)
     await assertKeyUsable(record, verifierConfig)
 
-    const publicKey = importSpkiPublicKey(record.publicKey)
+    const publicKey = importStoredPublicKey(record)
     const body = await request.readBody()
     verifyPlatformAssertion(record, { ...request, publicKey, body, receivedAt }, verifierConfig)
-    return { keyId: record.keyId, platform: record.platform, body }
+    return { debug: false, keyId: record.keyId, platform: record.platform, body }
+  }
+
+  async function verifyRequest(request: SignedRequest): Promise<VerifiedRequest> {
+    if (debugToken !== undefined && request.debugToken !== undefined) {
+      return verifyDebugRequest(request, request.debugToken, debugToken)
+    }
+    return verifySignedRequest(request)
   }
 
   async function verifyAssertion(request: SignedRequest): Promise<VerifiedRequest> {
     try {
-      const verified = await verifySignedRequest(request)
-      emit({ type: 'request.verified', keyId: verified.keyId, platform: verified.platform })
+      const verified = await verifyRequest(request)
+      emit(requestVerifiedEvent(verified))
       return verified
     } catch (error) {
       if (error instanceof PeageError) {

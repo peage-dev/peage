@@ -1,6 +1,7 @@
 import {
   fromBase64url,
   HTTP_HEADER_ASSERTION,
+  HTTP_HEADER_DEBUG_TOKEN,
   HTTP_HEADER_KEY_ID,
   HTTP_HEADER_PROTOCOL_VERSION,
   PLATFORM_APP_ATTEST,
@@ -123,6 +124,22 @@ async function expectClientError(promise: Promise<unknown>, code: string) {
   await expect(promise).rejects.toSatisfy(
     (error) => error instanceof PeageClientError && error.code === code,
   )
+}
+
+function nativeFailingFirstAttestation(code: string) {
+  const attestedKeyIds: string[] = []
+  const generateKey = vi.fn(async () => `KEY_${generateKey.mock.calls.length}`)
+  const native = stubNative({
+    generateKey,
+    async attestKey(keyId) {
+      attestedKeyIds.push(keyId)
+      if (attestedKeyIds.length === 1) {
+        throw Object.assign(new Error('attestation failed'), { code })
+      }
+      return 'ATTESTATION_PROOF'
+    },
+  })
+  return { native, generateKey, attestedKeyIds }
 }
 
 describe('register', () => {
@@ -313,22 +330,6 @@ describe('register', () => {
     },
   )
 
-  function nativeFailingFirstAttestation(code: string) {
-    const attestedKeyIds: string[] = []
-    const generateKey = vi.fn(async () => `KEY_${generateKey.mock.calls.length}`)
-    const native = stubNative({
-      generateKey,
-      async attestKey(keyId) {
-        attestedKeyIds.push(keyId)
-        if (attestedKeyIds.length === 1) {
-          throw Object.assign(new Error('attestation failed'), { code })
-        }
-        return 'ATTESTATION_PROOF'
-      },
-    })
-    return { native, generateKey, attestedKeyIds }
-  }
-
   it('retries the same key when Apple was unavailable during attestation', async () => {
     const { native, generateKey, attestedKeyIds } =
       nativeFailingFirstAttestation('E_SERVER_UNAVAILABLE')
@@ -390,25 +391,25 @@ describe('isSupported', () => {
   })
 })
 
+function countingNative() {
+  const generateKey = vi.fn(async () => `KEY_${generateKey.mock.calls.length}`)
+  return { native: stubNative({ generateKey }), generateKey }
+}
+
+function clientWith(
+  native: NativeAttest,
+  options: { baseUrl?: string; keyScope?: string; fetch?: typeof fetch },
+) {
+  return createPeageClientWithNative({
+    baseUrl: options.baseUrl ?? BASE_URL,
+    keyScope: options.keyScope,
+    fetch: options.fetch ?? recordingFetch([]),
+    native,
+    platform: PLATFORM_APP_ATTEST,
+  })
+}
+
 describe('key scope', () => {
-  function countingNative() {
-    const generateKey = vi.fn(async () => `KEY_${generateKey.mock.calls.length}`)
-    return { native: stubNative({ generateKey }), generateKey }
-  }
-
-  function clientWith(
-    native: NativeAttest,
-    options: { baseUrl?: string; keyScope?: string; fetch?: typeof fetch },
-  ) {
-    return createPeageClientWithNative({
-      baseUrl: options.baseUrl ?? BASE_URL,
-      keyScope: options.keyScope,
-      fetch: options.fetch ?? recordingFetch([]),
-      native,
-      platform: PLATFORM_APP_ATTEST,
-    })
-  }
-
   it('stores the key under the normalized baseUrl', async () => {
     const { native } = countingNative()
     await clientWith(native, { baseUrl: 'HTTPS://API.example.com:443/v1/' }).register()
@@ -864,21 +865,21 @@ describe('clearKey', () => {
   })
 })
 
-describe('registration attempts', () => {
-  function countingFetch(counts: { challenges: number }, solveStatus: number): typeof fetch {
-    return async (input) => {
-      const url = urlOf(input)
-      if (url.endsWith('/peage/challenge')) {
-        counts.challenges += 1
-        return Response.json({ challenge: 'CHALLENGE_VALUE' })
-      }
-      if (url.endsWith('/peage/solve')) {
-        return new Response(null, { status: solveStatus })
-      }
-      return new Response('ok')
+function countingFetch(counts: { challenges: number }, solveStatus: number): typeof fetch {
+  return async (input) => {
+    const url = urlOf(input)
+    if (url.endsWith('/peage/challenge')) {
+      counts.challenges += 1
+      return Response.json({ challenge: 'CHALLENGE_VALUE' })
     }
+    if (url.endsWith('/peage/solve')) {
+      return new Response(null, { status: solveStatus })
+    }
+    return new Response('ok')
   }
+}
 
+describe('registration attempts', () => {
   it('stops registering after 3 failures in a row by default', async () => {
     const counts = { challenges: 0 }
     const peage = createClient(stubNative(), countingFetch(counts, 401))
@@ -973,6 +974,40 @@ describe('registration attempts', () => {
   })
 })
 
+function realSha256Native() {
+  return stubNative({
+    getKeyId: async () => 'KEY_ID',
+    sha256: realSha256,
+  })
+}
+
+async function hashSignedBy(
+  input: string | Request,
+  init?: RequestInit,
+): Promise<string | undefined> {
+  const signedHashes: string[] = []
+  const native = {
+    ...realSha256Native(),
+    async generateAssertion(_keyId: string, clientDataHash: string) {
+      signedHashes.push(clientDataHash)
+      return 'ASSERTION'
+    },
+  }
+  await createClient(native, recordingFetch([])).fetch(input, init)
+  return signedHashes[0]
+}
+
+async function expectRefusedBeforeSigning(init: RequestInit, message: RegExp) {
+  const calls: Call[] = []
+  const generateAssertion = vi.fn(async () => 'ASSERTION')
+  const peage = createClient({ ...realSha256Native(), generateAssertion }, recordingFetch(calls))
+  await expect(peage.fetch('/api/items', { method: 'POST', ...init })).rejects.toThrow(
+    expect.objectContaining({ name: 'TypeError', message: expect.stringMatching(message) }),
+  )
+  expect(calls).toStrictEqual([])
+  expect(generateAssertion).not.toHaveBeenCalled()
+}
+
 describe('fetch as a drop-in replacement', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] })
@@ -982,13 +1017,6 @@ describe('fetch as a drop-in replacement', () => {
   afterEach(() => {
     vi.useRealTimers()
   })
-
-  function realSha256Native() {
-    return stubNative({
-      getKeyId: async () => 'KEY_ID',
-      sha256: realSha256,
-    })
-  }
 
   it.each([
     ['a full URL', `${BASE_URL}/items/../list?page=2`],
@@ -1010,22 +1038,6 @@ describe('fetch as a drop-in replacement', () => {
     expect(fetchedUrl).toBe(`${BASE_URL}${path}`)
     expect(signedHash).toBe(await hashSignedFor(native, path))
   })
-
-  async function hashSignedBy(
-    input: string | Request,
-    init?: RequestInit,
-  ): Promise<string | undefined> {
-    const signedHashes: string[] = []
-    const native = {
-      ...realSha256Native(),
-      async generateAssertion(_keyId: string, clientDataHash: string) {
-        signedHashes.push(clientDataHash)
-        return 'ASSERTION'
-      },
-    }
-    await createClient(native, recordingFetch([])).fetch(input, init)
-    return signedHashes[0]
-  }
 
   const postInit = { method: 'POST', body: '{"name":"thing"}' }
 
@@ -1156,17 +1168,6 @@ describe('fetch as a drop-in replacement', () => {
     const peage = createClient(realSha256Native(), recordingFetch([]))
     await expect(peage.fetch('/api/items', { cache: 'no-store' })).rejects.toThrow(/cache/)
   })
-
-  async function expectRefusedBeforeSigning(init: RequestInit, message: RegExp) {
-    const calls: Call[] = []
-    const generateAssertion = vi.fn(async () => 'ASSERTION')
-    const peage = createClient({ ...realSha256Native(), generateAssertion }, recordingFetch(calls))
-    await expect(peage.fetch('/api/items', { method: 'POST', ...init })).rejects.toThrow(
-      expect.objectContaining({ name: 'TypeError', message: expect.stringMatching(message) }),
-    )
-    expect(calls).toStrictEqual([])
-    expect(generateAssertion).not.toHaveBeenCalled()
-  }
 
   it.each(['deflate', 'br', 'GZIP', 'gzip, br', 'gzip, gzip'])(
     'refuses Content-Encoding: %s, which iOS would send uncompressed, before signing',
@@ -1420,5 +1421,211 @@ describe('fetch', () => {
     await expect(peage.fetch('/upload', { method: 'POST', body: new Blob(['x']) })).rejects.toThrow(
       /only sign string or Uint8Array/,
     )
+  })
+})
+
+function oneAssertionAtATimeNative() {
+  const assertionConcurrency = { current: 0, max: 0 }
+  const native = stubNative({
+    getKeyId: async () => 'KEY_ID',
+    async generateAssertion() {
+      assertionConcurrency.current += 1
+      assertionConcurrency.max = Math.max(assertionConcurrency.max, assertionConcurrency.current)
+      try {
+        if (assertionConcurrency.current > 1) {
+          throw Object.assign(new Error('unknownSystemFailure'), { code: 'E_ASSERT' })
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5))
+        return 'ASSERTION'
+      } finally {
+        assertionConcurrency.current -= 1
+      }
+    },
+  })
+  return { native, assertionConcurrency }
+}
+
+function fetchAnsweringOnceAllStarted(requestCount: number): typeof fetch {
+  let startedRequests = 0
+  const allStarted = Promise.withResolvers<void>()
+  return async () => {
+    startedRequests += 1
+    if (startedRequests === requestCount) {
+      allStarted.resolve()
+    }
+    await allStarted.promise
+    return new Response('ok')
+  }
+}
+
+describe('concurrent signing', () => {
+  it('generates one assertion at a time while sending the requests in parallel', async () => {
+    const paths = ['/a', '/b', '/c', '/d']
+    const { native, assertionConcurrency } = oneAssertionAtATimeNative()
+    const peage = createClient(native, fetchAnsweringOnceAllStarted(paths.length))
+
+    const responses = await Promise.all(paths.map((path) => peage.fetch(path)))
+
+    expect(responses.map((response) => response.status)).toStrictEqual([200, 200, 200, 200])
+    expect(assertionConcurrency.max).toBe(1)
+  })
+
+  it('generates one assertion at a time across clients sharing the native module', async () => {
+    const { native, assertionConcurrency } = oneAssertionAtATimeNative()
+    const first = createClient(native, recordingFetch([]))
+    const second = createPeageClientWithNative({
+      baseUrl: 'https://other.example.com',
+      fetch: recordingFetch([]),
+      native,
+      platform: PLATFORM_APP_ATTEST,
+    })
+
+    await Promise.all([first.fetch('/a'), second.fetch('/b')])
+
+    expect(assertionConcurrency.max).toBe(1)
+  })
+
+  it('signs the next request after an assertion fails', async () => {
+    let assertionCalls = 0
+    const peage = createClient(
+      stubNative({
+        getKeyId: async () => 'KEY_ID',
+        async generateAssertion() {
+          assertionCalls += 1
+          if (assertionCalls === 1) {
+            throw Object.assign(new Error('boom'), { code: 'E_ASSERT' })
+          }
+          return 'ASSERTION'
+        },
+      }),
+      recordingFetch([]),
+    )
+
+    const failing = peage.fetch('/a')
+    const following = peage.fetch('/b')
+
+    await expectClientError(failing, 'NATIVE')
+    expect((await following).status).toBe(200)
+  })
+
+  it('stops waiting for a hung assertion when the queued request is aborted', async () => {
+    const firstAssertionGate = Promise.withResolvers<void>()
+    const generateAssertion = vi.fn(async () => {
+      if (generateAssertion.mock.calls.length === 1) {
+        await firstAssertionGate.promise
+      }
+      return 'ASSERTION'
+    })
+    const peage = createClient(
+      stubNative({ getKeyId: async () => 'KEY_ID', generateAssertion }),
+      recordingFetch([]),
+    )
+    const controller = new AbortController()
+
+    const hung = peage.fetch('/a')
+    const aborted = peage.fetch('/b', { signal: controller.signal })
+    await vi.waitFor(() => expect(generateAssertion).toHaveBeenCalledTimes(1))
+    await new Promise((resolve) => setTimeout(resolve))
+    controller.abort()
+
+    await expect(aborted).rejects.toMatchObject({ name: 'AbortError' })
+    expect(generateAssertion).toHaveBeenCalledTimes(1)
+
+    const following = peage.fetch('/c')
+    firstAssertionGate.resolve()
+    expect((await hung).status).toBe(200)
+    expect((await following).status).toBe(200)
+    expect(generateAssertion).toHaveBeenCalledTimes(2)
+  })
+})
+
+function clientWithDebugToken(native: NativeAttest, fetchFromServer: typeof fetch) {
+  return createPeageClientWithNative({
+    baseUrl: BASE_URL,
+    fetch: fetchFromServer,
+    native,
+    platform: PLATFORM_APP_ATTEST,
+    debugToken: 'DEBUG_TOKEN',
+  })
+}
+
+describe('debugToken', () => {
+  it('sends the request with the token, without registering or signing, on a device that cannot attest', async () => {
+    const getKeyId = vi.fn(async () => 'KEY_ID')
+    const generateAssertion = vi.fn(async () => 'ASSERTION')
+    const sha256 = vi.fn(async () => 'STUBHASH')
+    const calls: Call[] = []
+    const peage = clientWithDebugToken(
+      stubNative({ isSupported: async () => false, getKeyId, generateAssertion, sha256 }),
+      recordingFetch(calls),
+    )
+
+    const response = await peage.fetch('/api/items?page=2', {
+      method: 'post',
+      body: '{"name":"thing"}',
+      headers: { 'content-type': 'application/json' },
+      credentials: 'include',
+    })
+
+    expect(await response.text()).toBe('ok')
+    expect(calls).toHaveLength(1)
+    const [call] = calls
+    expect(call?.url).toBe(`${BASE_URL}/api/items?page=2`)
+    expect(call?.method).toBe('POST')
+    expect(call?.body).toBe('{"name":"thing"}')
+    expect(call?.credentials).toBe('include')
+    expect(call?.headers.get('content-type')).toBe('application/json')
+    expect(call?.headers.get(HTTP_HEADER_DEBUG_TOKEN)).toBe('DEBUG_TOKEN')
+    expect(call?.headers.get(HTTP_HEADER_PROTOCOL_VERSION)).toBe(PROTOCOL_VERSION)
+    expect(call?.headers.has(HTTP_HEADER_KEY_ID)).toBe(false)
+    expect(call?.headers.has(HTTP_HEADER_ASSERTION)).toBe(false)
+    expect(getKeyId).not.toHaveBeenCalled()
+    expect(generateAssertion).not.toHaveBeenCalled()
+    expect(sha256).not.toHaveBeenCalled()
+  })
+
+  it('validates the request as when signing', async () => {
+    const peage = clientWithDebugToken(
+      stubNative({ isSupported: async () => false }),
+      recordingFetch([]),
+    )
+    await expect(peage.fetch('https://other.example.com/x')).rejects.toThrow(
+      /only sends requests to/,
+    )
+  })
+
+  it('still refuses to register on a device that cannot attest', async () => {
+    const peage = clientWithDebugToken(
+      stubNative({ isSupported: async () => false }),
+      recordingFetch([]),
+    )
+    await expectClientError(peage.register(), 'UNSUPPORTED')
+  })
+
+  it('signs without the token on a device that can attest', async () => {
+    const calls: Call[] = []
+    const peage = clientWithDebugToken(stubNative(), recordingFetch(calls))
+
+    await peage.fetch('/x')
+
+    expect(calls.map((call) => call.url)).toStrictEqual([
+      `${BASE_URL}/peage/challenge`,
+      `${BASE_URL}/peage/solve`,
+      `${BASE_URL}/x`,
+    ])
+    const headers = callTo(calls, '/x')?.headers
+    expect(headers?.get(HTTP_HEADER_KEY_ID)).toBe('GENERATED_KEY_ID')
+    expect(headers?.get(HTTP_HEADER_ASSERTION)).toBe('ASSERTION')
+    expect(headers?.has(HTTP_HEADER_DEBUG_TOKEN)).toBe(false)
+  })
+
+  it('is required for fetch to send anything from a device that cannot attest', async () => {
+    const calls: Call[] = []
+    const peage = createClient(
+      stubNative({ isSupported: async () => false }),
+      recordingFetch(calls),
+    )
+    await expectClientError(peage.fetch('/x'), 'UNSUPPORTED')
+    expect(calls).toStrictEqual([])
   })
 })

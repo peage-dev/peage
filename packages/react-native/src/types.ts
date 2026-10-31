@@ -11,7 +11,8 @@ export type NativeAttest = {
 }
 
 /**
- * - `UNSUPPORTED`: the device can't attest keys (no App Attest, or no Play Store).
+ * - `UNSUPPORTED`: the device can't attest keys (no App Attest, or no Play Store), or the
+ *   native module isn't linked.
  * - `NETWORK`: the server couldn't be reached.
  * - `CHALLENGE_FAILED`: the challenge expired before registration finished.
  * - `ATTESTATION_REJECTED`: the server refused the device's attestation (401).
@@ -60,6 +61,14 @@ export type PeageClientOptions = {
    * UNSUPPORTED failures don't count. Defaults to 3.
    */
   maxRegistrationAttempts?: number
+  /**
+   * Development only. On a device that can't attest, e.g. a simulator or Expo Go, `fetch` sends
+   * this token in `X-Peage-Debug-Token` instead of registering and signing; `register` still
+   * fails with UNSUPPORTED. Ignored on devices that can attest. The server must be configured
+   * with the same token, and refuses it in production. Android emulators with the Play Store
+   * count as able to attest.
+   */
+  debugToken?: string
 }
 
 /** Signs requests with this device's attested key, registering the key with the server when needed. */

@@ -11,3 +11,12 @@ export class PeageClientError extends Error {
     this.code = code
   }
 }
+
+export function abortErrorOf(signal: AbortSignal): unknown {
+  if (signal.reason instanceof Error) {
+    return signal.reason
+  }
+  const error = new Error('The request was aborted')
+  error.name = 'AbortError'
+  return error
+}

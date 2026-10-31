@@ -8,6 +8,9 @@ export async function callNative<T>(operation: () => Promise<T>): Promise<T> {
   try {
     return await operation()
   } catch (error) {
+    if (error instanceof PeageClientError) {
+      throw error
+    }
     throw new PeageClientError('NATIVE', 'Péage native module failed', { cause: error })
   }
 }

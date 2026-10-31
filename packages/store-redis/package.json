@@ -35,7 +35,20 @@
   },
   "devDependencies": {
     "ioredis": "catalog:",
+    "redis": "catalog:",
     "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "ioredis": ">=5",
+    "redis": ">=4"
+  },
+  "peerDependenciesMeta": {
+    "ioredis": {
+      "optional": true
+    },
+    "redis": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=22.12"

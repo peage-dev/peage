@@ -1,5 +1,5 @@
 import type { Peage, PeageConfig } from '@peage/core'
-import type { RequestHandler } from 'express'
+import type { RequestHandler, Router } from 'express'
 
 /** Options for `createPeage`: Péage core's config plus the body size limit. */
 export type PeageExpressConfig = PeageConfig & {
@@ -18,6 +18,15 @@ export type PeageExpress = Peage & {
   challenge: RequestHandler
   /** Handles the solve request (`SOLVE_PATH` by default): registers the attested key, answers 204. */
   solve: RequestHandler
-  /** Sets `res.locals.peage` to the `VerifiedRequest`, which `verifiedRequestOf(res)` returns. */
+  /**
+   * Serves `challenge` at `POST CHALLENGE_PATH` and `solve` at `POST SOLVE_PATH`;
+   * mount it under a prefix with `app.use('/v1', peage.router)`.
+   */
+  router: Router
+  /**
+   * Sets `res.locals.peage` to the `VerifiedRequest`, which `verifiedRequestOf(res)` returns.
+   * With `debugToken` configured, a request carrying a non-empty `X-Peage-Debug-Token`
+   * header needs no `X-Peage-KeyId` or `X-Peage-Assertion` header.
+   */
   protect: RequestHandler
 }

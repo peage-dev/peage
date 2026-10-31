@@ -2,40 +2,50 @@ import type { AttestedKeyRecord, IssuedChallenge } from '@peage/core'
 
 import { PLATFORM_APP_ATTEST, PLATFORM_PLAY_INTEGRITY } from '@peage/protocol'
 import { Redis } from 'ioredis'
+import { createClient } from 'redis'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { createRedisStore, type RedisCommands } from '../index.ts'
+import { createRedisStore, fromIoredis, fromNodeRedis, type RedisCommands } from '../index.ts'
 import { type RedisContainer, startRedisContainer } from './redisContainer.ts'
 
-let container: RedisContainer
-let client: Redis
-let redis: RedisCommands
+type RedisConnection = {
+  redis: RedisCommands
+  flushAll(): Promise<unknown>
+  millisecondsToLive(key: string): Promise<number>
+  close(): Promise<void>
+}
 
-function ioredisCommands(ioredis: Redis): RedisCommands {
+async function connectIoredis(url: string): Promise<RedisConnection> {
+  const client = new Redis(url)
   return {
-    get: (key) => ioredis.get(key),
-    getDel: (key) => ioredis.getdel(key),
-    set: (key, value, expiresAt) =>
-      expiresAt === undefined
-        ? ioredis.set(key, value)
-        : ioredis.set(key, value, 'PXAT', expiresAt),
-    del: (key) => ioredis.del(key),
+    redis: fromIoredis(client),
+    flushAll: () => client.flushall(),
+    millisecondsToLive: (key) => client.pttl(key),
+    close: async () => {
+      await client.quit()
+    },
   }
 }
 
+async function connectNodeRedis(url: string): Promise<RedisConnection> {
+  const client = createClient({ url })
+  await client.connect()
+  return {
+    redis: fromNodeRedis(client),
+    flushAll: () => client.flushAll(),
+    millisecondsToLive: (key) => client.pTTL(key),
+    close: () => client.close(),
+  }
+}
+
+let container: RedisContainer
+
 beforeAll(async () => {
   container = await startRedisContainer()
-  client = new Redis(container.url)
-  redis = ioredisCommands(client)
 }, 120_000)
 
 afterAll(async () => {
-  client.disconnect()
   await container.stop()
-})
-
-beforeEach(async () => {
-  await client.flushall()
 })
 
 function newChallenge(): IssuedChallenge {
@@ -52,7 +62,26 @@ const record: AttestedKeyRecord = {
   attestationCertificateSerialNumbers: ['1', '-7fff'],
 }
 
-describe('createRedisStore', () => {
+describe.each([
+  ['ioredis', connectIoredis],
+  ['node-redis', connectNodeRedis],
+])('createRedisStore with %s', (_client, connect) => {
+  let connection: RedisConnection
+  let redis: RedisCommands
+
+  beforeAll(async () => {
+    connection = await connect(container.url)
+    redis = connection.redis
+  })
+
+  afterAll(async () => {
+    await connection.close()
+  })
+
+  beforeEach(async () => {
+    await connection.flushAll()
+  })
+
   it('hands out a challenge only once', async () => {
     const store = createRedisStore({ redis })
     const challenge = newChallenge()
@@ -112,7 +141,7 @@ describe('createRedisStore', () => {
   it('never expires key records', async () => {
     const store = createRedisStore({ redis })
     await store.saveAttestedKey(record)
-    expect(await client.pttl(`peage:key:${record.keyId}`)).toBe(-1)
+    expect(await connection.millisecondsToLive(`peage:key:${record.keyId}`)).toBe(-1)
   })
 
   it('returns an App Attest record, which has no serial numbers, as saved', async () => {
@@ -146,22 +175,27 @@ describe('createRedisStore', () => {
     ['a challenge with a non-string value', { ...newChallenge(), value: 42 }],
     ['a challenge with an unknown platform', { ...newChallenge(), platform: 'web' }],
     ['a challenge with a non-number expiresAt', { ...newChallenge(), expiresAt: 'soon' }],
-  ])('refuses %s', async (_case, stored) => {
+  ])('treats %s as absent', async (_case, stored) => {
     const store = createRedisStore({ redis })
     const challenge = newChallenge()
-    await client.set(
+    await redis.set(
       `peage:challenge:${challenge.platform}:${challenge.value}`,
       JSON.stringify(stored),
     )
-    await expect(store.takeChallenge(challenge)).rejects.toThrow(/malformed challenge/)
+    expect(await store.takeChallenge(challenge)).toBeNull()
   })
 
-  it('refuses a key record that is not JSON', async () => {
+  it('treats a challenge that is not JSON as absent', async () => {
     const store = createRedisStore({ redis })
-    await client.set(`peage:key:${record.keyId}`, '{not json')
-    await expect(store.loadAttestedKey({ keyId: record.keyId })).rejects.toThrow(
-      /malformed key record/,
-    )
+    const challenge = newChallenge()
+    await redis.set(`peage:challenge:${challenge.platform}:${challenge.value}`, '{not json')
+    expect(await store.takeChallenge(challenge)).toBeNull()
+  })
+
+  it('treats a key record that is not JSON as absent', async () => {
+    const store = createRedisStore({ redis })
+    await redis.set(`peage:key:${record.keyId}`, '{not json')
+    expect(await store.loadAttestedKey({ keyId: record.keyId })).toBeNull()
   })
 
   it.each([
@@ -180,11 +214,16 @@ describe('createRedisStore', () => {
       'a key record whose serial numbers include a non-string',
       { ...record, attestationCertificateSerialNumbers: ['1', 2] },
     ],
-  ])('refuses %s', async (_case, stored) => {
+  ])('treats %s as absent', async (_case, stored) => {
     const store = createRedisStore({ redis })
-    await client.set(`peage:key:${record.keyId}`, JSON.stringify(stored))
-    await expect(store.loadAttestedKey({ keyId: record.keyId })).rejects.toThrow(
-      /malformed key record/,
-    )
+    await redis.set(`peage:key:${record.keyId}`, JSON.stringify(stored))
+    expect(await store.loadAttestedKey({ keyId: record.keyId })).toBeNull()
+  })
+
+  it('replaces a malformed key record when the key is saved again', async () => {
+    const store = createRedisStore({ redis })
+    await redis.set(`peage:key:${record.keyId}`, '{not json')
+    await store.saveAttestedKey(record)
+    expect(await store.loadAttestedKey({ keyId: record.keyId })).toStrictEqual(record)
   })
 })

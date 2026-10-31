@@ -1,11 +1,10 @@
-import type { NextFunction, Request, RequestHandler, Response } from 'express'
-
 import {
   assertPlatform,
   createPeage as createCorePeage,
   type Peage,
   PeageError,
   type PeageErrorCode,
+  type SignedRequest,
   type VerifiedRequest,
 } from '@peage/core'
 import {
@@ -14,9 +13,17 @@ import {
   formatAuthenticateHeader,
   fromBase64url,
   HTTP_HEADER_ASSERTION,
+  HTTP_HEADER_DEBUG_TOKEN,
   HTTP_HEADER_KEY_ID,
   SOLVE_PATH,
 } from '@peage/protocol'
+import express, {
+  type NextFunction,
+  type Request,
+  type RequestHandler,
+  type Response,
+  type Router,
+} from 'express'
 
 import type { PeageExpress, PeageExpressConfig } from './types.ts'
 
@@ -55,6 +62,8 @@ export type { Platform } from '@peage/protocol'
 export type { PeageExpress, PeageExpressConfig } from './types.ts'
 
 type AsyncMiddleware = (req: Request, res: Response, next: NextFunction) => Promise<void>
+type RequestCredentials = Pick<SignedRequest, 'keyId' | 'assertion' | 'debugToken'>
+type ProtectOptions = { maxBodyBytes: number; acceptsDebugToken: boolean }
 
 declare global {
   namespace Express {
@@ -123,6 +132,11 @@ function readRequiredHeader(req: Request, name: string): string {
   return value
 }
 
+function readOptionalHeader(req: Request, name: string): string | undefined {
+  const value = req.header(name)
+  return value === '' ? undefined : value
+}
+
 function decodeBase64url(value: string): Uint8Array {
   assertUnpaddedBase64url(value)
   return fromBase64url(value)
@@ -184,16 +198,34 @@ function solveHandler(peage: Peage): RequestHandler {
   })
 }
 
-function protectMiddleware(peage: Peage, maxBodyBytes: number): RequestHandler {
+function readSignatureCredentials(req: Request): RequestCredentials {
+  return {
+    keyId: readRequiredHeader(req, HTTP_HEADER_KEY_ID),
+    assertion: decodeBase64url(readRequiredHeader(req, HTTP_HEADER_ASSERTION)),
+  }
+}
+
+function debugTokenCredentials(debugToken: string): RequestCredentials {
+  return { keyId: '', assertion: new Uint8Array(), debugToken }
+}
+
+function readCredentials(req: Request, acceptsDebugToken: boolean): RequestCredentials {
+  const debugToken = readOptionalHeader(req, HTTP_HEADER_DEBUG_TOKEN)
+  if (acceptsDebugToken && debugToken !== undefined) {
+    return debugTokenCredentials(debugToken)
+  }
+  return readSignatureCredentials(req)
+}
+
+function protectMiddleware(peage: Peage, options: ProtectOptions): RequestHandler {
   return withHttpErrors(async (req, res, next) => {
     assertBodyUnread(req)
 
     const verified = await peage.verifyAssertion({
-      keyId: readRequiredHeader(req, HTTP_HEADER_KEY_ID),
-      assertion: decodeBase64url(readRequiredHeader(req, HTTP_HEADER_ASSERTION)),
+      ...readCredentials(req, options.acceptsDebugToken),
       method: req.method,
       path: originFormOf(req.originalUrl),
-      readBody: () => readDecodedBodyBounded(req, maxBodyBytes),
+      readBody: () => readDecodedBodyBounded(req, options.maxBodyBytes),
     })
 
     res.locals.peage = verified
@@ -204,6 +236,13 @@ function protectMiddleware(peage: Peage, maxBodyBytes: number): RequestHandler {
   })
 }
 
+function routerFor(challenge: RequestHandler, solve: RequestHandler): Router {
+  const router = express.Router()
+  router.post(CHALLENGE_PATH, challenge)
+  router.post(SOLVE_PATH, solve)
+  return router
+}
+
 /** Returns the request `protect` verified; throws when `protect` did not run before the handler. */
 export function verifiedRequestOf(res: Response): VerifiedRequest {
   const verified = res.locals.peage
@@ -212,9 +251,9 @@ export function verifiedRequestOf(res: Response): VerifiedRequest {
 }
 
 /**
- * Péage core plus the `challenge` and `solve` handlers and the `protect`
- * middleware. Mount `protect` before any body parser: it reads the body
- * itself. Body parsers mounted after it are skipped, so `req.body` stays
+ * Péage core plus the `challenge` and `solve` handlers, a `router` serving
+ * both, and the `protect` middleware. Mount `protect` before any body parser:
+ * it reads the body itself. Body parsers mounted after it are skipped, so `req.body` stays
  * undefined unless the verified body is non-empty JSON (`application/json` or
  * `+json`), which `protect` parses into `req.body`. `verifiedRequestOf(res).body`
  * holds the verified body whatever its type.
@@ -223,10 +262,16 @@ export function createPeage(config: PeageExpressConfig): PeageExpress {
   const maxBodyBytes = config.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES
   assertValidMaxBodyBytes(maxBodyBytes)
   const peage = createCorePeage(config)
+  const challenge = challengeHandler(peage)
+  const solve = solveHandler(peage)
   return {
     ...peage,
-    challenge: challengeHandler(peage),
-    solve: solveHandler(peage),
-    protect: protectMiddleware(peage, maxBodyBytes),
+    challenge,
+    solve,
+    router: routerFor(challenge, solve),
+    protect: protectMiddleware(peage, {
+      maxBodyBytes,
+      acceptsDebugToken: config.debugToken !== undefined,
+    }),
   }
 }

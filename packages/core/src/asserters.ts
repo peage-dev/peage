@@ -4,14 +4,24 @@ import {
   type Platform,
   isPlatform,
 } from '@peage/protocol'
+import { timingSafeEqual } from 'node:crypto'
 
-import type { AppAttestConfig, AttestedKeyRecord, IssuedChallenge, PeageConfig } from './types.ts'
+import type {
+  AppAttestConfig,
+  AttestedKeyRecord,
+  IssuedChallenge,
+  PeageConfig,
+  PlayIntegrityConfig,
+} from './types.ts'
 import type { ResolvedPlayIntegrityConfig } from './verifiers/android/types.ts'
 import type { VerifierConfig } from './verifiers/types.ts'
 
 import { PeageError, rethrowAs } from './errors.ts'
 import { isAttestationEnvironment, isCanonicalKeyId } from './guards.ts'
 import { assertNotRevoked } from './verifiers/android/asserters.ts'
+import { sha256 } from './verifiers/bytes.ts'
+
+const DEBUG_TOKEN_MIN_LENGTH = 32
 
 export function assertSomePlatformConfigured(config: PeageConfig): void {
   if (!config.appAttest && !config.playIntegrity) {
@@ -25,6 +35,35 @@ export function assertValidAppAttestConfig(config: AppAttestConfig): void {
   }
   if (config.environment !== undefined && !isAttestationEnvironment(config.environment)) {
     throw new Error("App Attest environment must be 'production' or 'development'")
+  }
+}
+
+function assertAppAttestInDevelopment(appAttest: AppAttestConfig | undefined): void {
+  if (appAttest && appAttest.environment !== 'development') {
+    throw new Error("debugToken needs App Attest environment 'development'")
+  }
+}
+
+function assertPlayIntegrityInDevelopment(playIntegrity: PlayIntegrityConfig | undefined): void {
+  if (playIntegrity && playIntegrity.allowUnrecognizedApps !== true) {
+    throw new Error('debugToken needs Play Integrity allowUnrecognizedApps')
+  }
+}
+
+export function assertValidDebugToken(config: PeageConfig): void {
+  if (config.debugToken === undefined) {
+    return
+  }
+  if (config.debugToken.length < DEBUG_TOKEN_MIN_LENGTH) {
+    throw new Error(`debugToken must be at least ${DEBUG_TOKEN_MIN_LENGTH} characters`)
+  }
+  assertAppAttestInDevelopment(config.appAttest)
+  assertPlayIntegrityInDevelopment(config.playIntegrity)
+}
+
+export function assertDebugTokenMatches(received: string, expected: string): void {
+  if (!timingSafeEqual(sha256(received), sha256(expected))) {
+    throw new PeageError('SIGNATURE_INVALID', 'Debug token does not match')
   }
 }
 

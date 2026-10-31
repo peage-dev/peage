@@ -83,18 +83,33 @@ export type SignedRequest = {
   assertion: Uint8Array
   /**
    * Returns the body with transfer and content coding removed. Called only once
-   * the key is found registered and usable.
+   * the key is found registered and usable, or the debug token matched.
    */
   readBody: () => Promise<Uint8Array>
+  /**
+   * From the `X-Peage-Debug-Token` header. Checked only when `debugToken` is
+   * configured; `keyId` and `assertion` are then ignored.
+   */
+  debugToken?: string
 }
 
-/** A signed request whose signature matched its registered key. */
-export type VerifiedRequest = {
-  keyId: string
-  platform: Platform
-  /** The body the signature covers, after content decoding. */
-  body: Uint8Array
-}
+/**
+ * A request core accepted: `debug: false` when its signature matched its
+ * registered key, `debug: true` when it carried the configured debug token.
+ */
+export type VerifiedRequest =
+  | {
+      debug: false
+      keyId: string
+      platform: Platform
+      /** The body the signature covers, after content decoding. */
+      body: Uint8Array
+    }
+  | {
+      debug: true
+      /** The body, after content decoding. */
+      body: Uint8Array
+    }
 
 /** `'development'` covers Xcode builds on iOS and apps Play doesn't recognize on Android. */
 export type AttestationEnvironment = 'production' | 'development'
@@ -156,7 +171,8 @@ export type KeyAttestationConfig = {
  * - `CHALLENGE_UNKNOWN`: the challenge was never issued, already used, or expired.
  * - `ATTESTATION_INVALID`: the attestation failed verification.
  * - `KEY_UNKNOWN`: no usable key is registered under this keyId.
- * - `SIGNATURE_INVALID`: the signature doesn't match the request and the stored key.
+ * - `SIGNATURE_INVALID`: the signature doesn't match the request and the stored key,
+ *   or the debug token doesn't match the configured one.
  *
  * Errors that aren't a `PeageError` are server failures, e.g. the store being down.
  */
@@ -171,7 +187,8 @@ export type PeageErrorCode =
 /**
  * Reported to `onEvent` when core accepts a registration or signed request, or
  * rejects it with a `PeageError`. `request.verified` means the signature
- * verified; the adapter may still reject the request, e.g. `@peage/express`
+ * verified, or, with `debug: true`, that the request carried the configured
+ * debug token; the adapter may still reject the request, e.g. `@peage/express`
  * answers 400 to a JSON body that doesn't parse.
  *
  * On rejected events, `keyId` is the one the client claimed, present only when
@@ -181,7 +198,8 @@ export type PeageErrorCode =
 export type PeageEvent =
   | { type: 'registration.accepted'; keyId: string; platform: Platform }
   | { type: 'registration.rejected'; keyId?: string; platform?: Platform; error: PeageError }
-  | { type: 'request.verified'; keyId: string; platform: Platform }
+  | { type: 'request.verified'; debug: false; keyId: string; platform: Platform }
+  | { type: 'request.verified'; debug: true }
   | { type: 'request.rejected'; keyId?: string; error: PeageError }
 
 /** At least one platform must be configured; requests for the other are rejected. */
@@ -190,6 +208,13 @@ export type PeageConfig = {
   store: PeageStore
   /** Errors the hook throws or rejects with are ignored. */
   onEvent?: (event: PeageEvent) => void
+  /**
+   * Development only: a request carrying this token is accepted without a
+   * registered key or signature. At least 32 characters. Allowed only when
+   * every configured platform accepts development builds: App Attest
+   * `environment: 'development'` and Play Integrity `allowUnrecognizedApps`.
+   */
+  debugToken?: string | undefined
 } & (
   | { appAttest: AppAttestConfig; playIntegrity?: PlayIntegrityConfig | undefined }
   | { appAttest?: AppAttestConfig | undefined; playIntegrity: PlayIntegrityConfig }
@@ -206,6 +231,9 @@ export type Peage = {
   /** Consumes the challenge, verifies the attestation and stores the attested key. */
   solveChallenge(request: RegistrationRequest): Promise<AttestedKeyRecord>
 
-  /** Verifies a signed request against the stored key and returns its body. */
+  /**
+   * Verifies a signed request against the stored key, or a debug request
+   * against the configured debug token, and returns its body.
+   */
   verifyAssertion(request: SignedRequest): Promise<VerifiedRequest>
 }

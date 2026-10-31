@@ -1,10 +1,4 @@
-import {
-  CHALLENGE_PATH,
-  createPeage,
-  type PlayIntegrityConfig,
-  SOLVE_PATH,
-  verifiedRequestOf,
-} from '@peage/express'
+import { createPeage, type PlayIntegrityConfig, verifiedRequestOf } from '@peage/express'
 import { createMemoryStore } from '@peage/store-memory'
 import express, { type ErrorRequestHandler } from 'express'
 
@@ -29,6 +23,7 @@ const peage = createPeage({
     environment: isDevelopment ? 'development' : 'production',
   },
   playIntegrity: playIntegrityFromEnv(),
+  debugToken: process.env.PEAGE_DEBUG_TOKEN,
   // Swap for `@peage/store-redis` or your own store in a real deployment.
   store: createMemoryStore(),
   onEvent: (event) =>
@@ -42,12 +37,15 @@ app.use((req, _res, next) => {
   next()
 })
 
-app.post(CHALLENGE_PATH, peage.challenge)
-app.post(SOLVE_PATH, peage.solve)
+app.use(peage.router)
 
 app.get('/api/hello', peage.protect, (_req, res) => {
-  const device = verifiedRequestOf(res)
-  res.json({ message: `hello, ${device.platform} device ${device.keyId.slice(0, 8)}…` })
+  const request = verifiedRequestOf(res)
+  if (request.debug) {
+    res.json({ message: 'hello, debug client' })
+    return
+  }
+  res.json({ message: `hello, ${request.platform} device ${request.keyId.slice(0, 8)}…` })
 })
 
 app.post('/api/echo', peage.protect, (req, res) => {
