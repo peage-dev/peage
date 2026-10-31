@@ -103,3 +103,7 @@ export function serverPathOf(url: string, server: ServerLocation): string {
   assertSameOrigin(normalizeOrigin(target.origin), normalizeOrigin(server.origin))
   return normalizePath(target.path.startsWith('/') ? target.path : `/${target.path}`)
 }
+
+export function serverUrlOf(url: string, server: ServerLocation): string {
+  return server.origin + serverPathOf(url, server)
+}

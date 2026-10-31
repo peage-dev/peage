@@ -1,11 +1,13 @@
 import {
   assertionBucket,
   canonicalRequestBytes,
+  CHALLENGE_PATH,
   HTTP_HEADER_ASSERTION,
   HTTP_HEADER_KEY_ID,
   HTTP_HEADER_PROTOCOL_VERSION,
   type Platform,
   PROTOCOL_VERSION,
+  SOLVE_PATH,
   toBase64url,
 } from '@peage/protocol'
 
@@ -16,7 +18,7 @@ import { PeageClientError } from './errors.ts'
 import { authenticateErrorOf } from './headers.ts'
 import { callNative, nativeErrorCode, sha256 } from './native.ts'
 import { createRegistration } from './registration.ts'
-import { normalizeBaseUrl, serverLocationOf } from './requestTarget.ts'
+import { normalizeBaseUrl, serverLocationOf, serverUrlOf } from './requestTarget.ts'
 import { requestToSend } from './requestToSend.ts'
 
 const DEFAULT_MAX_REGISTRATION_ATTEMPTS = 3
@@ -81,7 +83,8 @@ export function createPeageClientWithNative(
   const { register, forgetKey, clearKey } = createRegistration({
     native,
     platform,
-    baseUrl: options.baseUrl,
+    challengeUrl: serverUrlOf(options.challengePath ?? CHALLENGE_PATH, server),
+    solveUrl: serverUrlOf(options.solvePath ?? SOLVE_PATH, server),
     keyScope,
     fetchFromServer,
     maxRegistrationAttempts,
@@ -107,8 +110,9 @@ export function createPeageClientWithNative(
     for (const [name, value] of Object.entries(signed)) {
       headers.set(name, value)
     }
+    const url = server.origin + request.path
     try {
-      const response = await fetchFromServer(`${server.origin}${request.path}`, {
+      const response = await fetchFromServer(url, {
         method: request.method,
         headers,
         body: request.body,
@@ -120,7 +124,7 @@ export function createPeageClientWithNative(
       if (isCancellation(error)) {
         throw error
       }
-      throw new PeageClientError('NETWORK', `Péage could not reach ${request.path}`, {
+      throw new PeageClientError('NETWORK', `Péage could not reach ${url}`, {
         cause: error,
       })
     }

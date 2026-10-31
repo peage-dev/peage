@@ -14,9 +14,9 @@ export type PeageExpressConfig = PeageConfig & {
 
 /** Returned by `createPeage`: Péage core plus Express handlers for its routes. */
 export type PeageExpress = Peage & {
-  /** Handles `POST /peage/challenge`: `{ platform }` → `{ challenge }`. */
+  /** Handles the challenge request (`CHALLENGE_PATH` by default): `{ platform }` → `{ challenge }`. */
   challenge: RequestHandler
-  /** Handles `POST /peage/solve`: registers the attested key, answers 204. */
+  /** Handles the solve request (`SOLVE_PATH` by default): registers the attested key, answers 204. */
   solve: RequestHandler
   /** Sets `res.locals.peage` to the `VerifiedRequest`, which `verifiedRequestOf(res)` returns. */
   protect: RequestHandler

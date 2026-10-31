@@ -21,7 +21,7 @@ export function assertValidBaseUrl(origin: string, path: string): void {
 
 export function assertSameOrigin(targetOrigin: string, serverOrigin: string): void {
   if (targetOrigin !== serverOrigin) {
-    throw new TypeError(`Péage only signs requests to ${serverOrigin}`)
+    throw new TypeError(`Péage only sends requests to ${serverOrigin}`)
   }
 }
 

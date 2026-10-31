@@ -62,6 +62,10 @@ const peage = createPeageClient({ baseUrl: 'https://api.example.com' })
 const response = await peage.fetch('/api/hello')
 ```
 
+The client registers at `/peage/challenge` and `/peage/solve` under `baseUrl`.
+Set `challengePath` and `solvePath` if you mount `peage.challenge` and
+`peage.solve` elsewhere.
+
 ## Development
 
 ```sh

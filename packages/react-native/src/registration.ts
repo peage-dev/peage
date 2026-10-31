@@ -1,10 +1,8 @@
 import {
-  CHALLENGE_PATH,
   HTTP_HEADER_PROTOCOL_VERSION,
   PLATFORM_APP_ATTEST,
   type Platform,
   PROTOCOL_VERSION,
-  SOLVE_PATH,
   toBase64url,
 } from '@peage/protocol'
 
@@ -69,7 +67,8 @@ function keyScopeStateOf(native: NativeAttest, keyScope: string): KeyScopeState 
 type RegistrationOptions = {
   native: NativeAttest
   platform: Platform
-  baseUrl: string
+  challengeUrl: string
+  solveUrl: string
   keyScope: string
   fetchFromServer: typeof fetch
   maxRegistrationAttempts: number
@@ -82,12 +81,20 @@ type Registration = {
 }
 
 export function createRegistration(options: RegistrationOptions): Registration {
-  const { native, platform, baseUrl, keyScope, fetchFromServer, maxRegistrationAttempts } = options
+  const {
+    native,
+    platform,
+    challengeUrl,
+    solveUrl,
+    keyScope,
+    fetchFromServer,
+    maxRegistrationAttempts,
+  } = options
   const state = keyScopeStateOf(native, keyScope)
 
-  async function postJson(path: string, body: unknown): Promise<Response> {
+  async function postJson(url: string, body: unknown): Promise<Response> {
     try {
-      return await fetchFromServer(`${baseUrl}${path}`, {
+      return await fetchFromServer(url, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -96,12 +103,12 @@ export function createRegistration(options: RegistrationOptions): Registration {
         method: 'POST',
       })
     } catch (error) {
-      throw new PeageClientError('NETWORK', `Péage could not reach ${path}`, { cause: error })
+      throw new PeageClientError('NETWORK', `Péage could not reach ${url}`, { cause: error })
     }
   }
 
   async function fetchChallenge(): Promise<string> {
-    const response = await postJson(CHALLENGE_PATH, { platform })
+    const response = await postJson(challengeUrl, { platform })
     assertChallengeIssued(response)
     let body: unknown
     try {
@@ -135,7 +142,7 @@ export function createRegistration(options: RegistrationOptions): Registration {
     state.appAttestKeyIdAwaitingAttestation = null
     const proof = await attestKey(keyId, challengeHash)
 
-    assertSolveAccepted(await postJson(SOLVE_PATH, { challenge, keyId, platform, proof }))
+    assertSolveAccepted(await postJson(solveUrl, { challenge, keyId, platform, proof }))
     await callNative(() => native.markAttested(keyId, keyScope))
     return keyId
   }

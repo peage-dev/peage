@@ -83,6 +83,15 @@ function recordingFetch(calls: Call[], solveStatus = 204): typeof fetch {
   }
 }
 
+function registrationFetch(urls: string[]): typeof fetch {
+  return async (input) => {
+    urls.push(urlOf(input))
+    return urls.length === 1
+      ? Response.json({ challenge: 'CHALLENGE_VALUE' })
+      : new Response(null, { status: 204 })
+  }
+}
+
 function forgetfulFetch(forgottenKeyId: string, calls: Call[]): typeof fetch {
   const recording = recordingFetch(calls)
   return async (input, init) => {
@@ -136,6 +145,68 @@ describe('register', () => {
       proof: 'ATTESTATION_PROOF',
     })
     expect(calls[0]?.headers.get(HTTP_HEADER_PROTOCOL_VERSION)).toBe(PROTOCOL_VERSION)
+  })
+
+  it.each([
+    [
+      'default paths, appended to the baseUrl path',
+      {},
+      [`${BASE_URL}/v1/peage/challenge`, `${BASE_URL}/v1/peage/solve`],
+    ],
+    [
+      'paths, appended to the baseUrl path',
+      { challengePath: '/attest/challenge', solvePath: '/attest/solve' },
+      [`${BASE_URL}/v1/attest/challenge`, `${BASE_URL}/v1/attest/solve`],
+    ],
+    [
+      'URLs on the baseUrl origin',
+      { challengePath: `${BASE_URL}/auth/challenge`, solvePath: `${BASE_URL}/auth/solve` },
+      [`${BASE_URL}/auth/challenge`, `${BASE_URL}/auth/solve`],
+    ],
+  ])('registers through %s', async (_label, paths, expectedUrls) => {
+    const urls: string[] = []
+    const peage = createPeageClientWithNative({
+      baseUrl: `${BASE_URL}/v1`,
+      ...paths,
+      fetch: registrationFetch(urls),
+      native: stubNative(),
+      platform: PLATFORM_APP_ATTEST,
+    })
+
+    await peage.register()
+
+    expect(urls).toStrictEqual(expectedUrls)
+  })
+
+  it.each([
+    [
+      'challengePath',
+      'another origin',
+      'https://other.example.com/peage/challenge',
+      /only sends requests to/,
+    ],
+    [
+      'challengePath',
+      'a path without a leading slash',
+      'attest/challenge',
+      /paths must start with/,
+    ],
+    [
+      'solvePath',
+      'another origin',
+      'https://other.example.com/peage/solve',
+      /only sends requests to/,
+    ],
+    ['solvePath', 'a path without a leading slash', 'attest/solve', /paths must start with/],
+  ])('refuses a %s on %s', (option, _label, path, message) => {
+    expect(() =>
+      createPeageClientWithNative({
+        baseUrl: BASE_URL,
+        [option]: path,
+        native: stubNative(),
+        platform: PLATFORM_APP_ATTEST,
+      }),
+    ).toThrow(message)
   })
 
   it('binds the new key and its attestation to SHA-256 of the challenge', async () => {

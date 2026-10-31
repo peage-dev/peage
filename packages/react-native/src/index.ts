@@ -19,7 +19,8 @@ function linkedNativeModule(): NativeAttest {
 /**
  * The Péage client: App Attest on iOS, Play Integrity on Android. Throws if the native module
  * isn't linked, and a `TypeError` if `baseUrl` isn't an `http://` or `https://` URL whose path,
- * if any, starts with `/`.
+ * if any, starts with `/`, or if `challengePath` or `solvePath` isn't a path starting with `/`
+ * or a URL on `baseUrl`'s origin.
  */
 export function createPeageClient(options: PeageClientOptions): PeageClient {
   return createPeageClientWithNative({

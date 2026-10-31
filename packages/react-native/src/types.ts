@@ -36,9 +36,16 @@ export type PeageClientOptions = {
   /**
    * An `http://` or `https://` URL whose path, if any, starts with `/`, e.g.
    * `https://api.example.com/v1`; its path is put in front of the paths passed to `fetch`.
-   * Registration POSTs to `${baseUrl}/peage/challenge` and `${baseUrl}/peage/solve`.
    */
   baseUrl: string
+  /**
+   * Where registration POSTs its challenge request, resolved like `fetch`'s input: a path
+   * starting with `/`, appended to `baseUrl`'s path, or a URL on `baseUrl`'s origin.
+   * Defaults to `/peage/challenge`.
+   */
+  challengePath?: string
+  /** Where registration POSTs its attestation, resolved like `challengePath`. Defaults to `/peage/solve`. */
+  solvePath?: string
   /** Defaults to `globalThis.fetch`. */
   fetch?: typeof fetch
   /**
