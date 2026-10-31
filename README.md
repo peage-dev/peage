@@ -1,4 +1,9 @@
-# Péage
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/peage-lockup-on-dark.svg">
+    <img alt="Péage" src="docs/assets/peage-lockup-on-light.svg" height="64">
+  </picture>
+</h1>
 
 TypeScript libraries that check requests to your API come from your iOS or
 Android app, using Apple's App Attest and Google's Play Integrity. A React

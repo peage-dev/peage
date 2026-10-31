@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Rejected</title>
+  <rect width="64" height="64" rx="14" fill="#10161F"/>
+  <g transform="translate(32 32) rotate(45)" fill="#D52B3A">
+    <rect x="-18" y="-4.5" width="36" height="9" rx="1"/>
+    <rect x="-4.5" y="-18" width="9" height="36" rx="1"/>
+  </g>
+</svg>

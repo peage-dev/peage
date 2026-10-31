@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Péage</title>
+  <path d="M14 0 H50 A14 14 0 0 1 64 14 V25 A7 7 0 0 0 64 39 V50 A14 14 0 0 1 50 64 H14 A14 14 0 0 1 0 50 V39 A7 7 0 0 0 0 25 V14 A14 14 0 0 1 14 0 Z" fill="#F2B300"/>
+  <path d="M21 35 L30 44 L49 25" fill="none" stroke="#B88400" stroke-width="7" stroke-linecap="square"/>
+  <path d="M16 28 L25 37 L44 18" fill="none" stroke="#10161F" stroke-width="7" stroke-linecap="square"/>
+</svg>
