@@ -8,7 +8,7 @@
     "format:check": "oxfmt --check",
     "lint": "oxlint --type-aware",
     "lint:fix": "oxlint --type-aware --fix",
-    "test": "vitest run"
+    "test": "vitest run --silent=passed-only"
   },
   "devDependencies": {
     "@peage/express": "workspace:*",
