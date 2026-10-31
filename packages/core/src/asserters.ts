@@ -2,9 +2,7 @@ import {
   PLATFORM_APP_ATTEST,
   PLATFORM_PLAY_INTEGRITY,
   type Platform,
-  fromBase64,
   isPlatform,
-  toBase64,
 } from '@peage/protocol'
 
 import type { AppAttestConfig, AttestedKeyRecord, IssuedChallenge, PeageConfig } from './types.ts'
@@ -12,7 +10,7 @@ import type { ResolvedPlayIntegrityConfig } from './verifiers/android/types.ts'
 import type { VerifierConfig } from './verifiers/types.ts'
 
 import { PeageError, rethrowAs } from './errors.ts'
-import { isAttestationEnvironment } from './guards.ts'
+import { isAttestationEnvironment, isCanonicalKeyId } from './guards.ts'
 import { assertNotRevoked } from './verifiers/android/asserters.ts'
 
 export function assertSomePlatformConfigured(config: PeageConfig): void {
@@ -52,9 +50,8 @@ export function assertChallengeShape(challenge: string): void {
   }
 }
 
-/** One spelling per key: padded standard base64 of 32 bytes, as Apple emits it. */
 export function assertCanonicalKeyId(keyId: string): void {
-  if (!/^[A-Za-z0-9+/]{43}=$/.test(keyId) || toBase64(fromBase64(keyId)) !== keyId) {
+  if (!isCanonicalKeyId(keyId)) {
     throw new PeageError('REQUEST_MALFORMED', 'Key id is not canonical base64 of 32 bytes')
   }
 }

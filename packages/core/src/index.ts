@@ -23,6 +23,7 @@ import {
 import { CHALLENGE_TTL_MS, getRandomChallenge } from './challenges.ts'
 import { platformConfigOf, resolveVerifierConfig, warnAboutUnsafeSettings } from './config.ts'
 import { PeageError, rethrowAs } from './errors.ts'
+import { registrationRejectedEvent, requestRejectedEvent } from './events.ts'
 import { verifyPlatformAssertion, verifyPlatformAttestation } from './verifiers/index.ts'
 import { importSpkiPublicKey } from './verifiers/keys.ts'
 
@@ -112,18 +113,14 @@ export function createPeage(config: PeageConfig): Peage {
       return record
     } catch (error) {
       if (error instanceof PeageError) {
-        emit({
-          type: 'registration.rejected',
-          keyId: request.keyId,
-          platform: request.platform,
-          error,
-        })
+        emit(registrationRejectedEvent(request, error))
       }
       throw error
     }
   }
 
   async function verifySignedRequest(request: SignedRequest): Promise<VerifiedRequest> {
+    const receivedAt = Date.now()
     assertCanonicalKeyId(request.keyId)
     rethrowAs('REQUEST_MALFORMED', () => assertCanonicalRequest(request))
 
@@ -133,7 +130,7 @@ export function createPeage(config: PeageConfig): Peage {
 
     const publicKey = importSpkiPublicKey(record.publicKey)
     const body = await request.readBody()
-    verifyPlatformAssertion(record, { ...request, publicKey, body }, verifierConfig)
+    verifyPlatformAssertion(record, { ...request, publicKey, body, receivedAt }, verifierConfig)
     return { keyId: record.keyId, platform: record.platform, body }
   }
 
@@ -144,7 +141,7 @@ export function createPeage(config: PeageConfig): Peage {
       return verified
     } catch (error) {
       if (error instanceof PeageError) {
-        emit({ type: 'request.rejected', keyId: request.keyId, error })
+        emit(requestRejectedEvent(request, error))
       }
       throw error
     }

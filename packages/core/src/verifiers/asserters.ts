@@ -55,7 +55,7 @@ export function assertSignatureMatchesRecentBucket(
   verifySignature: (clientDataHash: Uint8Array) => boolean,
 ): void {
   const bodyDigest = sha256(input.body)
-  const currentBucket = assertionBucket(Math.floor(Date.now() / 1000))
+  const currentBucket = assertionBucket(Math.floor(input.receivedAt / 1000))
   const buckets = [
     currentBucket,
     currentBucket - ASSERTION_BUCKET_SECONDS,

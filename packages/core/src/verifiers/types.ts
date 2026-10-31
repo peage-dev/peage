@@ -16,6 +16,8 @@ export type AssertionInput = {
   path: string
   body: Uint8Array
   assertion: Uint8Array
+  /** Unix milliseconds at which the server started handling the request. */
+  receivedAt: number
 }
 
 export type VerifierConfig = {

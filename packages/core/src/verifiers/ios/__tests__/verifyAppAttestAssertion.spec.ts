@@ -50,6 +50,7 @@ function signedInput(
     ...request,
     publicKey,
     assertion: encodeAssertion(authenticatorData, signature),
+    receivedAt: Date.now(),
   }
   return { input, authenticatorData, signature }
 }
@@ -160,7 +161,7 @@ describe('verifyAppAttestAssertion', () => {
 
   describe('real iOS 27 device assertion', () => {
     const { verifiedAt, ...signed } = IOS_27_ASSERTION
-    const input = { ...signed, publicKey: IOS_27_DEVICE.publicKey }
+    const input = { ...signed, publicKey: IOS_27_DEVICE.publicKey, receivedAt: verifiedAt }
     const config = { appId: IOS_27_DEVICE.appId }
 
     beforeEach(() => {

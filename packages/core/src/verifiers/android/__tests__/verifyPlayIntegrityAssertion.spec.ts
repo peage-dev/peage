@@ -15,7 +15,12 @@ function signedInput(): AssertionInput {
     path: '/api/protected?page=1',
     body: new TextEncoder().encode('{"hello":"world"}'),
   }
-  return { ...request, publicKey, assertion: signPlayIntegrityRequest({ privateKey, ...request }) }
+  return {
+    ...request,
+    publicKey,
+    assertion: signPlayIntegrityRequest({ privateKey, ...request }),
+    receivedAt: Date.now(),
+  }
 }
 
 describe('verifyPlayIntegrityAssertion', () => {
@@ -33,14 +38,12 @@ describe('verifyPlayIntegrityAssertion', () => {
   })
 
   it('accepts a signature from the previous bucket', () => {
-    const input = signedInput()
-    vi.setSystemTime(FROZEN_TIME.getTime() + 30_000)
+    const input = { ...signedInput(), receivedAt: FROZEN_TIME.getTime() + 30_000 }
     expect(() => verifyPlayIntegrityAssertion(input)).not.toThrow()
   })
 
   it('rejects a signature two buckets old', () => {
-    const input = signedInput()
-    vi.setSystemTime(FROZEN_TIME.getTime() + 60_000)
+    const input = { ...signedInput(), receivedAt: FROZEN_TIME.getTime() + 60_000 }
     expect(() => verifyPlayIntegrityAssertion(input)).toThrow(/recent time bucket/)
   })
 

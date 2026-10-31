@@ -173,12 +173,16 @@ export type PeageErrorCode =
  * rejects it with a `PeageError`. `request.verified` means the signature
  * verified; the adapter may still reject the request, e.g. `@peage/express`
  * answers 400 to a JSON body that doesn't parse.
+ *
+ * On rejected events, `keyId` is the one the client claimed, present only when
+ * it is well-formed, and `platform` is present only when it is one Péage
+ * supports.
  */
 export type PeageEvent =
   | { type: 'registration.accepted'; keyId: string; platform: Platform }
-  | { type: 'registration.rejected'; keyId: string; platform: Platform; error: PeageError }
+  | { type: 'registration.rejected'; keyId?: string; platform?: Platform; error: PeageError }
   | { type: 'request.verified'; keyId: string; platform: Platform }
-  | { type: 'request.rejected'; keyId: string; error: PeageError }
+  | { type: 'request.rejected'; keyId?: string; error: PeageError }
 
 /** At least one platform must be configured; requests for the other are rejected. */
 export type PeageConfig = {

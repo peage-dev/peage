@@ -1,7 +1,9 @@
 import {
+  ASSERTION_BUCKET_SECONDS,
   type Platform,
   PLATFORM_APP_ATTEST,
   PLATFORM_PLAY_INTEGRITY,
+  assertionBucket,
   toBase64,
 } from '@peage/protocol'
 import {
@@ -35,6 +37,7 @@ import {
 
 const PACKAGE_NAME = 'dev.peage.core'
 const UNISSUED_CHALLENGE = 'A'.repeat(43)
+const MALFORMED_KEY_ID = `${'A'.repeat(43)}=\n${'A'.repeat(1000)}`
 const playIntegrityKeys = createPlayIntegrityKeys()
 const keyAttestationRoot = createKeyAttestationRoot()
 const PLAY_INTEGRITY_CONFIG = {
@@ -103,6 +106,19 @@ function androidRegistration(challenge: string, deviceKey: KeyObject) {
       keyAttestationRoot,
     }),
   }
+}
+
+function storePlayIntegrityKey(keys: Map<string, AttestedKeyRecord>, publicKey: KeyObject) {
+  const record: AttestedKeyRecord = {
+    keyId: keyIdFor(publicKey),
+    platform: PLATFORM_PLAY_INTEGRITY,
+    appId: PACKAGE_NAME,
+    environment: 'production',
+    publicKey: toBase64(publicKey.export({ format: 'der', type: 'spki' })),
+    attestedAt: 0,
+  }
+  keys.set(record.keyId, record)
+  return record
 }
 
 async function expectPeageError(promise: Promise<unknown>, code: string) {
@@ -309,6 +325,37 @@ describe('solveChallenge', () => {
         platform: PLATFORM_PLAY_INTEGRITY,
         error: expect.any(PeageError),
       },
+    ])
+  })
+
+  it('leaves a malformed keyId out of a rejected registration', async () => {
+    const { peage, events } = createAndroidPeage()
+    const registration = {
+      ...androidRegistration(UNISSUED_CHALLENGE, newDeviceKey()),
+      keyId: MALFORMED_KEY_ID,
+    }
+
+    await expectPeageError(peage.solveChallenge(registration), 'REQUEST_MALFORMED')
+    expect(events).toStrictEqual([
+      {
+        type: 'registration.rejected',
+        platform: PLATFORM_PLAY_INTEGRITY,
+        error: expect.any(PeageError),
+      },
+    ])
+  })
+
+  it('leaves an unsupported platform out of a rejected registration', async () => {
+    const { peage, events } = createAndroidPeage()
+    const registration = {
+      ...androidRegistration(UNISSUED_CHALLENGE, newDeviceKey()),
+      platform: 'windows',
+    }
+
+    // @ts-expect-error The type already forbids this; the runtime check is for JavaScript callers.
+    await expectPeageError(peage.solveChallenge(registration), 'REQUEST_MALFORMED')
+    expect(events).toStrictEqual([
+      { type: 'registration.rejected', keyId: registration.keyId, error: expect.any(PeageError) },
     ])
   })
 
@@ -529,7 +576,24 @@ describe('verifyAssertion', () => {
       'KEY_UNKNOWN',
     )
     expect(readBody).not.toHaveBeenCalled()
-    expect(events.map((event) => event.type)).toStrictEqual(['request.rejected'])
+    expect(events).toStrictEqual([
+      { type: 'request.rejected', keyId, error: expect.any(PeageError) },
+    ])
+  })
+
+  it('leaves a malformed keyId out of a rejected request', async () => {
+    const { peage, events } = createAndroidPeage()
+    await expectPeageError(
+      peage.verifyAssertion({
+        keyId: MALFORMED_KEY_ID,
+        method: 'GET',
+        path: '/',
+        assertion: new Uint8Array(),
+        readBody: readEmptyBody,
+      }),
+      'REQUEST_MALFORMED',
+    )
+    expect(events).toStrictEqual([{ type: 'request.rejected', error: expect.any(PeageError) }])
   })
 
   it.each(['get', 'GET\n'])('rejects the method %j before looking up the key', async (method) => {
@@ -685,4 +749,44 @@ describe('verifyAssertion', () => {
       expect(readBody).not.toHaveBeenCalled()
     },
   )
+
+  describe('a body that takes 70 seconds to arrive', () => {
+    const receivedAt = new Date('2026-05-01T12:00:00Z').getTime()
+    const bodyArrivedAt = receivedAt + 70_000
+    const body = new TextEncoder().encode('{"upload":"slow"}')
+
+    async function readBodyArrivingLate(): Promise<Uint8Array> {
+      vi.setSystemTime(bodyArrivedAt)
+      return body
+    }
+
+    async function verifySlowUpload(signedBucket: number) {
+      const { peage, keys } = createAndroidPeage()
+      const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+      const record = storePlayIntegrityKey(keys, publicKey)
+      const request = { method: 'POST', path: '/api/upload', body, bucket: signedBucket }
+      return peage.verifyAssertion({
+        keyId: record.keyId,
+        method: request.method,
+        path: request.path,
+        assertion: signPlayIntegrityRequest({ privateKey, ...request }),
+        readBody: readBodyArrivingLate,
+      })
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(receivedAt)
+    })
+
+    it('accepts a signature made when the request arrived', async () => {
+      const verified = await verifySlowUpload(assertionBucket(receivedAt / 1000))
+      expect(verified.body).toStrictEqual(body)
+    })
+
+    it('rejects a signature two buckets older than when the request arrived', async () => {
+      const staleBucket = assertionBucket(receivedAt / 1000) - 2 * ASSERTION_BUCKET_SECONDS
+      await expectPeageError(verifySlowUpload(staleBucket), 'SIGNATURE_INVALID')
+    })
+  })
 })
