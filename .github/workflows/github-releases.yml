@@ -28,8 +28,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           packages=(protocol core store-memory store-redis express react-native)
+          releaseWorkflow="https://github.com/peage-dev/peage .github/workflows/release.yml"
           versionOf() {
             node --print 'JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).version' "packages/$1/package.json"
+          }
+          provenanceOf() {
+            curl --fail --silent --show-error "https://registry.npmjs.org/-/npm/v1/attestations/@peage%2f$1@$2" |
+              jq 'first(.attestations[] | select(.predicateType == "https://slsa.dev/provenance/v1")) | .bundle.dsseEnvelope.payload | @base64d | fromjson'
+          }
+          workflowOf() {
+            jq --raw-output '.predicate.buildDefinition.externalParameters.workflow | "\(.repository) \(.path)"' <<< "$1"
+          }
+          commitOf() {
+            jq --raw-output '.predicate.buildDefinition.resolvedDependencies[0].digest.gitCommit' <<< "$1"
+          }
+          releaseNotesOf() {
+            local name="@peage/$1"
+            printf '## %s\n\nhttps://www.npmjs.com/package/%s/v/%s\n' "$name" "$name" "$version"
+            awk -v heading="## $version" '$0 == heading { found = 1; next } found && /^## / { exit } found' "packages/$1/CHANGELOG.md"
+            printf '\n'
           }
           version=$(versionOf protocol)
           tag="v$version"
@@ -39,6 +56,7 @@ jobs:
           fi
           notes="$RUNNER_TEMP/notes.md"
           : > "$notes"
+          target=""
           for package in "${packages[@]}"; do
             name="@peage/$package"
             if [ "$(versionOf "$package")" != "$version" ]; then
@@ -49,10 +67,26 @@ jobs:
               echo "::error::$name@$version is not live on npm yet"
               exit 1
             fi
-            {
-              printf '## %s\n\nhttps://www.npmjs.com/package/%s/v/%s\n' "$name" "$name" "$version"
-              awk -v heading="## $version" '$0 == heading { found = 1; next } found && /^## / { exit } found' "packages/$package/CHANGELOG.md"
-              printf '\n'
-            } >> "$notes"
+            provenance=$(provenanceOf "$package" "$version")
+            if [ -z "$provenance" ]; then
+              echo "::error::$name@$version has no npm provenance"
+              exit 1
+            fi
+            if [ "$(workflowOf "$provenance")" != "$releaseWorkflow" ]; then
+              echo "::error::$name@$version was not built by $releaseWorkflow"
+              exit 1
+            fi
+            commit=$(commitOf "$provenance")
+            if [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::$name@$version provenance has no git commit"
+              exit 1
+            fi
+            if [ -z "$target" ]; then
+              target="$commit"
+            elif [ "$commit" != "$target" ]; then
+              echo "::error::$name@$version was built from $commit, not $target like the packages before it"
+              exit 1
+            fi
+            releaseNotesOf "$package" >> "$notes"
           done
-          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file "$notes"
+          gh release create "$tag" --target "$target" --title "$tag" --notes-file "$notes"
