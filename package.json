@@ -13,7 +13,7 @@
     "build": "tsdown",
     "test": "pnpm -r --if-present test",
     "android:internal": "node scripts/publishAndroidInternal.ts",
-    "release:approve": "node scripts/approveStaged.ts"
+    "release": "node scripts/release.ts"
   },
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",

@@ -48,3 +48,61 @@ export function assertValidBundleListing(value: unknown): asserts value is Recor
     throw new Error('Bundle listing is not a JSON object')
   }
 }
+
+export function assertValidPackageJson(value: unknown): asserts value is { version: string } {
+  if (!isRecord(value) || typeof value.version !== 'string') {
+    throw new Error('package.json has no version')
+  }
+}
+
+export function assertOnMain(branch: string): void {
+  if (branch !== 'main') {
+    throw new Error(`Release from main, not ${branch || 'a detached HEAD'}`)
+  }
+}
+
+export function assertCleanWorkingTree(status: string): void {
+  if (status !== '') {
+    throw new Error('Commit or stash your changes first')
+  }
+}
+
+export function assertPushed(localCommit: string, remoteCommit: string): void {
+  if (localCommit !== remoteCommit) {
+    throw new Error(`Local main is at ${localCommit}, GitHub's at ${remoteCommit}`)
+  }
+}
+
+export function assertCiPassed(runs: unknown, commit: string): void {
+  const [latestRun] = Array.isArray(runs) ? runs : []
+  if (
+    !isRecord(latestRun) ||
+    latestRun.status !== 'completed' ||
+    latestRun.conclusion !== 'success'
+  ) {
+    throw new Error(`CI has not passed on ${commit}`)
+  }
+}
+
+export function assertSomethingToRelease(missingPackages: string[], version: string): void {
+  if (missingPackages.length === 0) {
+    throw new Error(`${version} is already on npm; run pnpm changeset version first`)
+  }
+}
+
+export function assertRunStarted(
+  runId: string | undefined,
+  workflow: string,
+): asserts runId is string {
+  if (runId === undefined) {
+    throw new Error(`Could not start ${workflow}, or gh did not print the run URL`)
+  }
+}
+
+export function assertAllOnNpm(missingPackages: string[], version: string): void {
+  if (missingPackages.length > 0) {
+    throw new Error(
+      `${missingPackages.join(', ')} not on npm at ${version}; approve them, then run the GitHub release workflow`,
+    )
+  }
+}
