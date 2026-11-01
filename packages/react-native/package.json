@@ -44,7 +44,7 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "react-native": ">=0.88"
+    "react-native": ">=0.76"
   },
   "codegenConfig": {
     "name": "RNPeageAttestSpec",

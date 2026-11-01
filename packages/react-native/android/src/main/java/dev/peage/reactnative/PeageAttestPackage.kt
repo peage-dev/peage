@@ -11,14 +11,15 @@ class PeageAttestPackage : BaseReactPackage() {
         if (name == PeageAttestModule.NAME) PeageAttestModule(reactContext) else null
 
     override fun getReactModuleInfoProvider(): ReactModuleInfoProvider = ReactModuleInfoProvider {
+        // Positional: React Native 0.76 names these parameters differently.
         mapOf(
             PeageAttestModule.NAME to ReactModuleInfo(
-                name = PeageAttestModule.NAME,
-                className = PeageAttestModule::class.java.name,
-                canOverrideExistingModule = false,
-                needsEagerInit = false,
-                isCxxModule = false,
-                isTurboModule = true,
+                PeageAttestModule.NAME,
+                PeageAttestModule::class.java.name,
+                false,
+                false,
+                false,
+                true,
             ),
         )
     }

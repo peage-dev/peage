@@ -23,7 +23,7 @@ Native client signs the requests and an Express middleware verifies them.
 | `@peage/protocol`     | Constants and encodings shared by the client and the server.                  |
 
 The server packages need Node.js 22.12 or later. The client needs React Native
-0.88 with the New Architecture.
+0.76 or later with the New Architecture.
 
 ## Example
 
