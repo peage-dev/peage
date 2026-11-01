@@ -62,11 +62,9 @@ export type PeageClientOptions = {
    */
   maxRegistrationAttempts?: number
   /**
-   * Development only. On a device that can't attest, e.g. a simulator or Expo Go, `fetch` sends
-   * this token in `X-Peage-Debug-Token` instead of registering and signing; `register` still
-   * fails with UNSUPPORTED. Ignored on devices that can attest. The server must be configured
-   * with the same token, and refuses it in production. Android emulators with the Play Store
-   * count as able to attest.
+   * Development only. When set, `fetch` sends this token in `X-Peage-Debug-Token` instead of
+   * registering and signing, on every device; `register` is unaffected. The server must be
+   * configured with the same token, and refuses it in production.
    */
   debugToken?: string
 }

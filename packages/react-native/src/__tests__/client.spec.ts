@@ -1550,13 +1550,14 @@ function clientWithDebugToken(native: NativeAttest, fetchFromServer: typeof fetc
 }
 
 describe('debugToken', () => {
-  it('sends the request with the token, without registering or signing, on a device that cannot attest', async () => {
+  it('sends the request with the token, without registering, signing or checking the device', async () => {
+    const isSupported = vi.fn(async () => true)
     const getKeyId = vi.fn(async () => 'KEY_ID')
     const generateAssertion = vi.fn(async () => 'ASSERTION')
     const sha256 = vi.fn(async () => 'STUBHASH')
     const calls: Call[] = []
     const peage = clientWithDebugToken(
-      stubNative({ isSupported: async () => false, getKeyId, generateAssertion, sha256 }),
+      stubNative({ isSupported, getKeyId, generateAssertion, sha256 }),
       recordingFetch(calls),
     )
 
@@ -1579,19 +1580,28 @@ describe('debugToken', () => {
     expect(call?.headers.get(HTTP_HEADER_PROTOCOL_VERSION)).toBe(PROTOCOL_VERSION)
     expect(call?.headers.has(HTTP_HEADER_KEY_ID)).toBe(false)
     expect(call?.headers.has(HTTP_HEADER_ASSERTION)).toBe(false)
+    expect(isSupported).not.toHaveBeenCalled()
     expect(getKeyId).not.toHaveBeenCalled()
     expect(generateAssertion).not.toHaveBeenCalled()
     expect(sha256).not.toHaveBeenCalled()
   })
 
   it('validates the request as when signing', async () => {
-    const peage = clientWithDebugToken(
-      stubNative({ isSupported: async () => false }),
-      recordingFetch([]),
-    )
+    const peage = clientWithDebugToken(stubNative(), recordingFetch([]))
     await expect(peage.fetch('https://other.example.com/x')).rejects.toThrow(
       /only sends requests to/,
     )
+  })
+
+  it('still registers on a device that can attest', async () => {
+    const calls: Call[] = []
+    const peage = clientWithDebugToken(stubNative(), recordingFetch(calls))
+
+    expect(await peage.register()).toBe('GENERATED_KEY_ID')
+    expect(calls.map((call) => call.url)).toStrictEqual([
+      `${BASE_URL}/peage/challenge`,
+      `${BASE_URL}/peage/solve`,
+    ])
   })
 
   it('still refuses to register on a device that cannot attest', async () => {
@@ -1600,23 +1610,6 @@ describe('debugToken', () => {
       recordingFetch([]),
     )
     await expectClientError(peage.register(), 'UNSUPPORTED')
-  })
-
-  it('signs without the token on a device that can attest', async () => {
-    const calls: Call[] = []
-    const peage = clientWithDebugToken(stubNative(), recordingFetch(calls))
-
-    await peage.fetch('/x')
-
-    expect(calls.map((call) => call.url)).toStrictEqual([
-      `${BASE_URL}/peage/challenge`,
-      `${BASE_URL}/peage/solve`,
-      `${BASE_URL}/x`,
-    ])
-    const headers = callTo(calls, '/x')?.headers
-    expect(headers?.get(HTTP_HEADER_KEY_ID)).toBe('GENERATED_KEY_ID')
-    expect(headers?.get(HTTP_HEADER_ASSERTION)).toBe('ASSERTION')
-    expect(headers?.has(HTTP_HEADER_DEBUG_TOKEN)).toBe(false)
   })
 
   it('is required for fetch to send anything from a device that cannot attest', async () => {

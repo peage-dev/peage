@@ -70,37 +70,30 @@ function postJson(body: string): RequestInit {
 }
 
 describe('react-native client ↔ express round-trip (debug token)', () => {
-  it('sends the debug token from a device that cannot attest, and the body reaches the route', async () => {
-    const { client } = await startClientAndServer(unsupportedNative(), DEBUG_TOKEN)
-    const response = await client.fetch('/api/echo', postJson('{"hello":"world"}'))
+  it.each([
+    ['can', supportedNative],
+    ['cannot', unsupportedNative],
+  ])(
+    'sends the debug token from a device that %s attest, and the body reaches the route',
+    async (_canAttest, createNative) => {
+      const { client } = await startClientAndServer(createNative(), DEBUG_TOKEN)
+      const response = await client.fetch('/api/echo', postJson('{"hello":"world"}'))
 
-    expect(response.status).toBe(200)
-    expect(await response.json()).toStrictEqual({
-      debug: true,
-      keyId: null,
-      body: '{"hello":"world"}',
-    })
-  })
+      expect(response.status).toBe(200)
+      expect(await response.json()).toStrictEqual({
+        debug: true,
+        keyId: null,
+        body: '{"hello":"world"}',
+      })
+    },
+  )
 
-  it('rejects a device that cannot attest sending another debug token as an invalid signature', async () => {
-    const { client } = await startClientAndServer(unsupportedNative(), `${DEBUG_TOKEN}x`)
+  it('rejects another debug token as an invalid signature', async () => {
+    const { client } = await startClientAndServer(supportedNative(), `${DEBUG_TOKEN}x`)
     const response = await client.fetch('/api/echo', postJson('{"hello":"world"}'))
     expect(response.status).toBe(401)
     expect(parseAuthenticateError(response.headers.get('WWW-Authenticate'))).toBe(
       'invalid_signature',
     )
-  })
-
-  it('registers and signs from a device that can attest, even with a debug token', async () => {
-    const native = supportedNative()
-    const { client, baseUrl } = await startClientAndServer(native, DEBUG_TOKEN)
-    const response = await client.fetch('/api/echo', postJson('{"hello":"world"}'))
-
-    expect(response.status).toBe(200)
-    expect(await response.json()).toStrictEqual({
-      debug: false,
-      keyId: await native.getKeyId(baseUrl),
-      body: '{"hello":"world"}',
-    })
   })
 })

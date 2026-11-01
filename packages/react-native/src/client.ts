@@ -158,18 +158,10 @@ export function createPeageClientWithNative(
     })
   }
 
-  async function debugTokenForUnsupportedDevice(): Promise<string | undefined> {
-    if (debugToken === undefined || (await isSupported())) {
-      return undefined
-    }
-    return debugToken
-  }
-
   async function peageFetch(input: string | URL | Request, init: RequestInit = {}) {
     const request = await requestToSend(input, init, server)
-    const token = await debugTokenForUnsupportedDevice()
-    if (token !== undefined) {
-      return fetchWithDebugToken(request, token)
+    if (debugToken !== undefined) {
+      return fetchWithDebugToken(request, debugToken)
     }
     return signedFetch(request)
   }

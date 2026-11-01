@@ -66,11 +66,11 @@ where `peage.router` serves them. Set `challengePath` and `solvePath` if you
 mount `peage.challenge` and `peage.solve` elsewhere.
 
 In development, the same `debugToken` on `createPeage` and `createPeageClient`
-lets devices that can't attest, such as the iOS simulator, through. `createPeage`
-refuses it unless it is at least 32 characters and every configured platform
-accepts development builds (App Attest `environment: 'development'`, Play
-Integrity `allowUnrecognizedApps`). Android emulators with the Play Store count
-as able to attest; use an image without Google Play.
+lets requests through without attestation: the client sends the token instead of
+registering and signing, on every device. `createPeage` refuses it unless it is
+at least 32 characters and every configured platform accepts development builds
+(App Attest `environment: 'development'`, Play Integrity
+`allowUnrecognizedApps`).
 
 ## Development
 
