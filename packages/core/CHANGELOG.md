@@ -1,5 +1,17 @@
 # @peage/core
 
+## 0.3.0
+
+### Minor Changes
+
+- b7d6256: Add a `debugToken` option for development: a protected request carrying it in `X-Peage-Debug-Token` is accepted without a registered key or signature. `createPeage` refuses it unless every configured platform accepts development builds, or when it is shorter than 32 characters. `VerifiedRequest` and the `request.verified` event now carry `debug`: check `debug` is false before reading `keyId` and `platform`.
+
+### Patch Changes
+
+- b7d6256: A signed request whose stored key record holds a public key that can't be imported is now rejected as an unknown key (`401`, `unknown_key`), so the client registers again, instead of failing as a server error.
+- Updated dependencies [b7d6256]
+  - @peage/protocol@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes

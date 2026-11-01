@@ -1,6 +1,6 @@
 {
   "name": "@peage/store-memory",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "In-memory Péage store for tests and local development.",
   "license": "MIT",
   "repository": {
