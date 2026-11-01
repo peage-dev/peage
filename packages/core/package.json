@@ -1,6 +1,6 @@
 {
   "name": "@peage/core",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Péage verifiers for iOS App Attest and Android Play Integrity, for writing server adapters.",
   "license": "MIT",
   "repository": {

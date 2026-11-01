@@ -1,5 +1,13 @@
 # @peage/react-native
 
+## 0.3.1
+
+### Patch Changes
+
+- 0122df8: With `debugToken` set, `fetch` now always sends it instead of registering and signing, including on devices that can attest.
+- Updated dependencies
+  - @peage/protocol@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes
