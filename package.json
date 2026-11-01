@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p packages/react-native && tsc --noEmit -p packages/react-native/tsconfig.tests.json && pnpm --filter RNExample typecheck",
     "build": "tsdown",
     "test": "pnpm -r --if-present test",
-    "android:internal": "node scripts/publishAndroidInternal.ts"
+    "android:internal": "node scripts/publishAndroidInternal.ts",
+    "release:approve": "node scripts/approveStaged.ts"
   },
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",
