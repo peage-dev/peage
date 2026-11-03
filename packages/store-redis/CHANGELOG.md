@@ -1,5 +1,17 @@
 # @peage/store-redis
 
+## 0.4.0
+
+### Minor Changes
+
+- 4cce460: Key records take about half as much memory in Redis, and are deleted when they expire. Records saved by 0.3 can't be read anymore, so those devices register again; the old records stay in Redis until you delete them.
+
+### Patch Changes
+
+- Updated dependencies [4cce460]
+  - @peage/core@0.4.0
+  - @peage/protocol@0.4.0
+
 ## 0.3.1
 
 ### Patch Changes
