@@ -116,7 +116,7 @@ function storePlayIntegrityKey(keys: Map<string, AttestedKeyRecord>, publicKey: 
     appId: PACKAGE_NAME,
     environment: 'production',
     publicKey: toBase64(publicKey.export({ format: 'der', type: 'spki' })),
-    attestedAt: 0,
+    attestedAt: Date.now(),
   }
   keys.set(record.keyId, record)
   return record
@@ -378,7 +378,7 @@ describe('solveChallenge', () => {
       appId: 'ABCDE12345.dev.peage',
       environment: 'production',
       publicKey: '',
-      attestedAt: 0,
+      attestedAt: Date.now(),
     })
 
     const challenge = await peage.createChallenge(PLATFORM_PLAY_INTEGRITY)
@@ -634,7 +634,7 @@ describe('verifyAssertion', () => {
       appId: PACKAGE_NAME,
       environment: 'production',
       publicKey: 'AAAA',
-      attestedAt: 0,
+      attestedAt: Date.now(),
     })
     await expectPeageError(
       peage.verifyAssertion({
@@ -666,7 +666,7 @@ describe('verifyAssertion', () => {
       appId: PACKAGE_NAME,
       environment: 'production',
       publicKey: 'AAAA',
-      attestedAt: 0,
+      attestedAt: Date.now(),
     })
     const challenge = await peage.createChallenge(PLATFORM_PLAY_INTEGRITY)
     const record = await peage.solveChallenge(androidRegistration(challenge, deviceKey))
@@ -681,7 +681,7 @@ describe('verifyAssertion', () => {
       appId: PACKAGE_NAME,
       environment: 'production',
       publicKey: 'AAAA',
-      attestedAt: 0,
+      attestedAt: Date.now(),
     })
     await expectPeageError(
       peage.verifyAssertion({
@@ -714,7 +714,7 @@ describe('verifyAssertion', () => {
         appId,
         environment: 'production',
         publicKey,
-        attestedAt: 0,
+        attestedAt: Date.now(),
       })
       await expectPeageError(
         peage.verifyAssertion({
@@ -753,7 +753,7 @@ describe('verifyAssertion', () => {
         appId: PACKAGE_NAME,
         environment: 'production',
         publicKey: toBase64(newDeviceKey().export({ format: 'der', type: 'spki' })),
-        attestedAt: 0,
+        attestedAt: Date.now(),
         attestationCertificateSerialNumbers,
       })
       await expectPeageError(
@@ -795,7 +795,7 @@ describe('verifyAssertion', () => {
         appId,
         environment: 'production',
         publicKey,
-        attestedAt: 0,
+        attestedAt: Date.now(),
       })
       await expectPeageError(
         peage.verifyAssertion({
@@ -849,6 +849,118 @@ describe('verifyAssertion', () => {
       const staleBucket = assertionBucket(receivedAt / 1000) - 2 * ASSERTION_BUCKET_SECONDS
       await expectPeageError(verifySlowUpload(staleBucket), 'SIGNATURE_INVALID')
     })
+  })
+})
+
+function signedGet(keyId: string, privateKey: KeyObject, readBody = readEmptyBody) {
+  const body = new Uint8Array()
+  const assertion = signPlayIntegrityRequest({ privateKey, method: 'GET', path: '/', body })
+  return { keyId, method: 'GET', path: '/', assertion, readBody }
+}
+
+describe('maxKeyAgeSeconds', () => {
+  const MAX_KEY_AGE_SECONDS = 60
+  const MAX_KEY_AGE_MS = MAX_KEY_AGE_SECONDS * 1000
+
+  async function registerWithMaxKeyAge() {
+    const { store, keys } = createTestStore()
+    const events: PeageEvent[] = []
+    const peage = createPeage({
+      playIntegrity: PLAY_INTEGRITY_CONFIG,
+      store,
+      maxKeyAgeSeconds: MAX_KEY_AGE_SECONDS,
+      onEvent: (event) => events.push(event),
+    })
+    const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+    const challenge = await peage.createChallenge(PLATFORM_PLAY_INTEGRITY)
+    const record = await peage.solveChallenge(androidRegistration(challenge, publicKey))
+    return { peage, keys, events, record, privateKey }
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now())
+  })
+
+  it('sets expiresAt to attestedAt plus maxKeyAgeSeconds on the stored record', async () => {
+    const { keys, record } = await registerWithMaxKeyAge()
+    expect(record.expiresAt).toBe(record.attestedAt + MAX_KEY_AGE_MS)
+    expect(keys.get(record.keyId)?.expiresAt).toBe(record.expiresAt)
+  })
+
+  it('defaults maxKeyAgeSeconds to 30 days', async () => {
+    const { peage } = createAndroidPeage()
+    const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+    const challenge = await peage.createChallenge(PLATFORM_PLAY_INTEGRITY)
+    const record = await peage.solveChallenge(androidRegistration(challenge, publicKey))
+    expect(record.expiresAt).toBe(record.attestedAt + 30 * 24 * 60 * 60 * 1000)
+  })
+
+  it('keeps keys forever with maxKeyAgeSeconds Infinity, leaving expiresAt out', async () => {
+    const { store } = createTestStore()
+    const peage = createPeage({
+      playIntegrity: PLAY_INTEGRITY_CONFIG,
+      store,
+      maxKeyAgeSeconds: Infinity,
+    })
+    const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+    const challenge = await peage.createChallenge(PLATFORM_PLAY_INTEGRITY)
+    const record = await peage.solveChallenge(androidRegistration(challenge, publicKey))
+    expect(record).not.toHaveProperty('expiresAt')
+
+    vi.setSystemTime(record.attestedAt + 10 * 365 * 24 * 60 * 60 * 1000)
+    const verified = await peage.verifyAssertion(signedGet(record.keyId, privateKey))
+    expect(verified.debug).toBe(false)
+  })
+
+  it.each([0, -1, Number.NaN])(
+    'refuses a maxKeyAgeSeconds of %d at startup',
+    (maxKeyAgeSeconds) => {
+      expect(() =>
+        createPeage({
+          playIntegrity: PLAY_INTEGRITY_CONFIG,
+          store: createTestStore().store,
+          maxKeyAgeSeconds,
+        }),
+      ).toThrow('maxKeyAgeSeconds must be a number above 0')
+    },
+  )
+
+  it('verifies a request signed by a key just younger than maxKeyAgeSeconds', async () => {
+    const { peage, record, privateKey } = await registerWithMaxKeyAge()
+    vi.setSystemTime(record.attestedAt + MAX_KEY_AGE_MS - 1)
+    const verified = await peage.verifyAssertion(signedGet(record.keyId, privateKey))
+    expect(verified.debug).toBe(false)
+  })
+
+  it('rejects a request signed by a key maxKeyAgeSeconds old as unknown, without reading the body', async () => {
+    const { peage, events, record, privateKey } = await registerWithMaxKeyAge()
+    vi.setSystemTime(record.attestedAt + MAX_KEY_AGE_MS)
+    const readBody = vi.fn(readEmptyBody)
+    await expectPeageError(
+      peage.verifyAssertion(signedGet(record.keyId, privateKey, readBody)),
+      'KEY_UNKNOWN',
+    )
+    expect(readBody).not.toHaveBeenCalled()
+    expect(events.at(-1)).toStrictEqual({
+      type: 'request.rejected',
+      keyId: record.keyId,
+      error: expect.objectContaining({ message: 'Key reached maxKeyAgeSeconds' }),
+    })
+  })
+
+  it('applies a lowered maxKeyAgeSeconds to keys registered before', async () => {
+    const { keys, record, privateKey } = await registerWithMaxKeyAge()
+    const store = {
+      ...createTestStore().store,
+      loadAttestedKey: async () => keys.get(record.keyId) ?? null,
+    }
+    const peage = createPeage({ playIntegrity: PLAY_INTEGRITY_CONFIG, store, maxKeyAgeSeconds: 1 })
+    vi.setSystemTime(record.attestedAt + 1_000)
+    await expectPeageError(
+      peage.verifyAssertion(signedGet(record.keyId, privateKey)),
+      'KEY_UNKNOWN',
+    )
   })
 })
 

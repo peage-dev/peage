@@ -1,8 +1,9 @@
-import type { AttestedKeyRecord, IssuedChallenge } from '@peage/core'
+import type { IssuedChallenge } from '@peage/core'
 
 import type { RedisStore, RedisStoreOptions } from './types.ts'
 
-import { isAttestedKeyRecord, isIssuedChallenge } from './guards.ts'
+import { isIssuedChallenge } from './guards.ts'
+import { decodeAttestedKeyRecord, encodeAttestedKeyRecord } from './keyRecords.ts'
 
 export { fromIoredis, fromNodeRedis } from './adapters.ts'
 export type {
@@ -26,14 +27,10 @@ function parseChallenge(json: string): IssuedChallenge | null {
   return isIssuedChallenge(value) ? value : null
 }
 
-function parseAttestedKeyRecord(json: string): AttestedKeyRecord | null {
-  const value = parseStoredJson(json)
-  return isAttestedKeyRecord(value) ? value : null
-}
-
 /**
- * Challenges expire with Redis's own TTL; key records are kept until deleted.
- * A stored challenge or key record that doesn't parse is treated as absent.
+ * Challenges, and key records with an `expiresAt`, expire with Redis's own TTL;
+ * other key records are kept until deleted. A stored challenge or key record
+ * that doesn't parse is treated as absent.
  */
 export function createRedisStore(options: RedisStoreOptions): RedisStore {
   const { redis } = options
@@ -56,11 +53,15 @@ export function createRedisStore(options: RedisStoreOptions): RedisStore {
       return json === null ? null : parseChallenge(json)
     },
     async saveAttestedKey(record) {
-      await redis.set(attestedKeyKey(record.keyId), JSON.stringify(record))
+      await redis.set(
+        attestedKeyKey(record.keyId),
+        JSON.stringify(encodeAttestedKeyRecord(record)),
+        record.expiresAt,
+      )
     },
     async loadAttestedKey({ keyId }) {
-      const json = await redis.get(attestedKeyKey(keyId))
-      return json === null ? null : parseAttestedKeyRecord(json)
+      const stored = await redis.get(attestedKeyKey(keyId))
+      return stored === null ? null : decodeAttestedKeyRecord(keyId, parseStoredJson(stored))
     },
     async deleteAttestedKey({ keyId }) {
       await redis.del(attestedKeyKey(keyId))

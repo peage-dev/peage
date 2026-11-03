@@ -8,8 +8,17 @@ import {
   assertSomePlatformConfigured,
   assertValidAppAttestConfig,
   assertValidDebugToken,
+  assertValidMaxKeyAgeSeconds,
 } from './asserters.ts'
 import { resolvePlayIntegrityConfig } from './verifiers/android/config.ts'
+
+export const DEFAULT_MAX_KEY_AGE_SECONDS: number = 30 * 24 * 60 * 60
+
+export function resolveMaxKeyAgeMs(config: PeageConfig): number {
+  const maxKeyAgeSeconds = config.maxKeyAgeSeconds ?? DEFAULT_MAX_KEY_AGE_SECONDS
+  assertValidMaxKeyAgeSeconds(maxKeyAgeSeconds)
+  return maxKeyAgeSeconds * 1000
+}
 
 export function resolveVerifierConfig(config: PeageConfig): VerifierConfig {
   assertSomePlatformConfigured(config)

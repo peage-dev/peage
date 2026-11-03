@@ -42,3 +42,15 @@ export type NodeRedisClient = {
   set(key: string, value: string, options?: { PXAT: number }): Promise<unknown>
   del(key: string): Promise<unknown>
 }
+
+/** A key record as store-redis saves it, without its keyId. */
+export type EncodedKeyRecord = [
+  version: number,
+  platform: number,
+  appId: string,
+  environment: number,
+  publicKey: string,
+  attestedAt: number,
+  expiresAt?: number | null,
+  serialNumbers?: string[] | null,
+]

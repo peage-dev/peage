@@ -15,6 +15,7 @@ import {
   assertChallengeShape,
   assertChallengeOutstanding,
   assertDebugTokenMatches,
+  assertKeyNotExpired,
   assertKeyRegistered,
   assertKeyUsable,
   assertPlatform,
@@ -22,7 +23,12 @@ import {
   assertSamePlatform,
 } from './asserters.ts'
 import { CHALLENGE_TTL_MS, getRandomChallenge } from './challenges.ts'
-import { platformConfigOf, resolveVerifierConfig, warnAboutUnsafeSettings } from './config.ts'
+import {
+  platformConfigOf,
+  resolveMaxKeyAgeMs,
+  resolveVerifierConfig,
+  warnAboutUnsafeSettings,
+} from './config.ts'
 import { PeageError, rethrowAs } from './errors.ts'
 import { registrationRejectedEvent, requestRejectedEvent, requestVerifiedEvent } from './events.ts'
 import { verifyPlatformAssertion, verifyPlatformAttestation } from './verifiers/index.ts'
@@ -63,7 +69,8 @@ async function verifyDebugRequest(
 /** Validates the config and returns the server core that adapters such as `@peage/express` wrap. */
 export function createPeage(config: PeageConfig): Peage {
   const verifierConfig = resolveVerifierConfig(config)
-  const debugToken = config.debugToken
+  const { debugToken } = config
+  const maxKeyAgeMs = resolveMaxKeyAgeMs(config)
   warnAboutUnsafeSettings(config)
 
   function emit(event: PeageEvent): void {
@@ -104,14 +111,18 @@ export function createPeage(config: PeageConfig): Peage {
     const existing = await config.store.loadAttestedKey({ keyId: request.keyId })
     assertSamePlatform(existing, request.platform)
 
+    const attestedAt = Date.now()
     const record: AttestedKeyRecord = {
       keyId: request.keyId,
       platform: request.platform,
       appId: attested.appId,
       environment: attested.environment,
       publicKey: toBase64(attested.publicKey.export({ format: 'der', type: 'spki' })),
-      attestedAt: Date.now(),
+      attestedAt,
       attestationCertificateSerialNumbers: attested.attestationCertificateSerialNumbers,
+    }
+    if (Number.isFinite(maxKeyAgeMs)) {
+      record.expiresAt = attestedAt + maxKeyAgeMs
     }
     await config.store.saveAttestedKey(record)
     return record
@@ -137,6 +148,7 @@ export function createPeage(config: PeageConfig): Peage {
 
     const record = await config.store.loadAttestedKey({ keyId: request.keyId })
     assertKeyRegistered(record)
+    assertKeyNotExpired(record, maxKeyAgeMs, receivedAt)
     await assertKeyUsable(record, verifierConfig)
 
     const publicKey = importStoredPublicKey(record)

@@ -26,6 +26,8 @@ export type AttestedKeyRecord = {
   publicKey: string
   /** Unix milliseconds. */
   attestedAt: number
+  /** Unix milliseconds: `attestedAt` plus `maxKeyAgeSeconds`, unless it is `Infinity`. */
+  expiresAt?: number
   /** Android only: serial numbers of the key's attestation certificates. */
   attestationCertificateSerialNumbers?: string[]
 }
@@ -41,7 +43,11 @@ export type PeageStore = {
    */
   takeChallenge(challenge: { value: string; platform: Platform }): Promise<IssuedChallenge | null>
 
-  /** Saves a key record, replacing any record with the same keyId. */
+  /**
+   * Saves a key record, replacing any record with the same keyId. It only
+   * needs to be kept until `expiresAt`, when set: delete it then, e.g. with a
+   * TTL, or records of devices that never come back accumulate.
+   */
   saveAttestedKey(record: AttestedKeyRecord): Promise<void>
 
   /**
@@ -170,7 +176,7 @@ export type KeyAttestationConfig = {
  * - `PLATFORM_DISABLED`: the server doesn't have this platform configured.
  * - `CHALLENGE_UNKNOWN`: the challenge was never issued, already used, or expired.
  * - `ATTESTATION_INVALID`: the attestation failed verification.
- * - `KEY_UNKNOWN`: no usable key is registered under this keyId.
+ * - `KEY_UNKNOWN`: no usable key is registered under this keyId, or it reached `maxKeyAgeSeconds`.
  * - `SIGNATURE_INVALID`: the signature doesn't match the request and the stored key,
  *   or the debug token doesn't match the configured one.
  *
@@ -215,6 +221,13 @@ export type PeageConfig = {
    * `environment: 'development'` and Play Integrity `allowUnrecognizedApps`.
    */
   debugToken?: string | undefined
+  /**
+   * Seconds after registration when a key stops being accepted; defaults to
+   * 30 days. A request signed by a key that reached it is rejected as
+   * `KEY_UNKNOWN`, so the client registers again. Must be above 0; `Infinity`
+   * keeps keys forever.
+   */
+  maxKeyAgeSeconds?: number | undefined
 } & (
   | { appAttest: AppAttestConfig; playIntegrity?: PlayIntegrityConfig | undefined }
   | { appAttest?: AppAttestConfig | undefined; playIntegrity: PlayIntegrityConfig }

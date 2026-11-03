@@ -61,6 +61,12 @@ export function assertValidDebugToken(config: PeageConfig): void {
   assertPlayIntegrityInDevelopment(config.playIntegrity)
 }
 
+export function assertValidMaxKeyAgeSeconds(maxKeyAgeSeconds: number): void {
+  if (Number.isNaN(maxKeyAgeSeconds) || maxKeyAgeSeconds <= 0) {
+    throw new Error('maxKeyAgeSeconds must be a number above 0')
+  }
+}
+
 export function assertDebugTokenMatches(received: string, expected: string): void {
   if (!timingSafeEqual(sha256(received), sha256(expected))) {
     throw new PeageError('SIGNATURE_INVALID', 'Debug token does not match')
@@ -114,6 +120,16 @@ export function assertKeyRegistered(
 ): asserts record is AttestedKeyRecord {
   if (!record) {
     throw new PeageError('KEY_UNKNOWN', 'Unknown keyId')
+  }
+}
+
+export function assertKeyNotExpired(
+  record: AttestedKeyRecord,
+  maxKeyAgeMs: number,
+  now: number,
+): void {
+  if (now >= record.attestedAt + maxKeyAgeMs) {
+    throw new PeageError('KEY_UNKNOWN', 'Key reached maxKeyAgeSeconds')
   }
 }
 

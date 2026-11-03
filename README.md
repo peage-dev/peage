@@ -61,16 +61,36 @@ const peage = createPeageClient({ baseUrl: 'https://api.example.com' })
 const response = await peage.fetch('/api/hello')
 ```
 
-The client registers at `/peage/challenge` and `/peage/solve` under `baseUrl`,
-where `peage.router` serves them. Set `challengePath` and `solvePath` if you
-mount `peage.challenge` and `peage.solve` elsewhere.
+The first time the app calls `fetch`, the client registers the device's key
+through two endpoints, `/peage/challenge` and `/peage/solve`, which
+`peage.router` serves. If you mount `peage.challenge` and `peage.solve`
+somewhere else, point the client to them with `challengePath` and `solvePath`.
 
-In development, the same `debugToken` on `createPeage` and `createPeageClient`
-lets requests through without attestation: the client sends the token instead of
-registering and signing, on every device. `createPeage` refuses it unless it is
-at least 32 characters and every configured platform accepts development builds
-(App Attest `environment: 'development'`, Play Integrity
-`allowUnrecognizedApps`).
+## Key expiry
+
+A registered key is accepted for 30 days. After that, the server answers
+`401 unknown_key`, and the client registers a new key and retries the request,
+so the device goes through the attestation checks again. Change the duration
+with `maxKeyAgeSeconds`, or set it to `Infinity` to keep keys forever.
+
+Every Android registration uses one request from your Play Integrity quota,
+which is 10,000 a day by default. With 30-day keys, expect about 1/30 of your
+active Android devices to register again each day. A lifetime of a few minutes
+means every active device registers again that often, which only works for a
+small app or with a much larger quota. On iOS, Apple asks apps to stay under 100
+attestations a second across all their users, and may throttle above that.
+
+The Redis store deletes keys when they expire.
+
+## Development builds
+
+Simulators, and Android emulators, can't attest. To use them against your
+server, give `createPeage` and `createPeageClient` the same `debugToken` in
+development builds: the client then sends the token instead of registering and
+signing. The server only accepts a token of at least 32 characters, and only
+when every platform you configured accepts development builds
+(`environment: 'development'` for App Attest, `allowUnrecognizedApps` for Play
+Integrity), so a production server can't be set up with one.
 
 ## Development
 
