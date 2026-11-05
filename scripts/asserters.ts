@@ -1,6 +1,8 @@
 import { isRecord } from '@peage/protocol'
 
-import type { ServiceAccount } from './types.ts'
+import type { ServiceAccount, StagedVersion } from './types.ts'
+
+import { isStagedVersion } from './guards.ts'
 
 export function assertValidServiceAccount(
   value: unknown,
@@ -49,50 +51,56 @@ export function assertValidBundleListing(value: unknown): asserts value is Recor
   }
 }
 
+export function assertValidStagedVersions(value: unknown): asserts value is StagedVersion[] {
+  if (!Array.isArray(value) || !value.every(isStagedVersion)) {
+    throw new Error('npm returned staged versions without the expected fields')
+  }
+}
+
 export function assertValidPackageJson(value: unknown): asserts value is { version: string } {
   if (!isRecord(value) || typeof value.version !== 'string') {
     throw new Error('package.json has no version')
   }
 }
 
-export function assertOnMain(branch: string): void {
-  if (branch !== 'main') {
-    throw new Error(`Release from main, not ${branch || 'a detached HEAD'}`)
+export function assertFound(value: string | undefined, message: string): asserts value is string {
+  if (!value) {
+    throw new Error(message)
   }
 }
 
-export function assertCleanWorkingTree(status: string): void {
-  if (status !== '') {
-    throw new Error('Commit or stash your changes first')
+export function assertOnlyVersionStaged(staged: StagedVersion[], version: string): void {
+  const others = staged.filter((candidate) => candidate.version !== version)
+  if (others.length > 0) {
+    const labels = others.map(({ packageName, version: other }) => `${packageName}@${other}`)
+    throw new Error(`Releasing ${version}, but npm also has ${labels.join(', ')} staged`)
   }
 }
 
-export function assertPushed(localCommit: string, remoteCommit: string): void {
-  if (localCommit !== remoteCommit) {
-    throw new Error(`Local main is at ${localCommit}, GitHub's at ${remoteCommit}`)
+export function assertAllStaged(missing: string[], version: string): void {
+  if (missing.length > 0) {
+    throw new Error(`${version} of ${missing.join(', ')} is neither on npm nor staged`)
   }
 }
 
-/** `conclusion` is empty while the run is in progress. */
-export function assertCiPassed(conclusion: string, commit: string): void {
-  if (conclusion !== 'success') {
-    throw new Error(`CI has not passed on ${commit}`)
-  }
-}
-
-export function assertRunStarted(
-  runId: string | undefined,
-  workflow: string,
-): asserts runId is string {
-  if (runId === undefined) {
-    throw new Error(`Could not start ${workflow}, or gh did not print the run URL`)
-  }
-}
-
-export function assertAllOnNpm(missingPackages: string[], version: string): void {
-  if (missingPackages.length > 0) {
+export function assertNothingStaged(staged: StagedVersion[], commit: string): void {
+  if (staged.length > 0) {
+    const rejections = staged.map(({ id }) => `  npm stage reject ${id}`).join('\n')
     throw new Error(
-      `npm doesn't serve ${version} of ${missingPackages.join(', ')} yet; run pnpm release again later`,
+      `These were staged, but not by a successful release.yml run on ${commit}. Reject them, then run pnpm release again:\n  npm login\n${rejections}\n  npm logout`,
     )
+  }
+}
+
+/** `status` compares main to the commit: main is ahead of it, or is it. */
+export function assertOnMain(status: string, commit: string): void {
+  if (status !== 'ahead' && status !== 'identical') {
+    throw new Error(`${commit} is not on main on GitHub`)
+  }
+}
+
+export function assertTagOn(taggedCommit: string, tag: string, commit: string): void {
+  if (taggedCommit !== commit) {
+    throw new Error(`${tag} is on ${taggedCommit}, not ${commit}; delete the tag to move it`)
   }
 }

@@ -13,7 +13,7 @@
     "build": "tsdown",
     "test": "pnpm -r --if-present test",
     "android:internal": "node scripts/publishAndroidInternal.ts",
-    "release": "node scripts/release.ts"
+    "release": "node --env-file-if-exists=.env scripts/release.ts"
   },
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",

@@ -1,41 +1,35 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { setTimeout as sleep } from 'node:timers/promises'
+
+import type { StagedVersion } from './types.ts'
 
 import {
-  assertAllOnNpm,
-  assertCiPassed,
-  assertCleanWorkingTree,
+  assertAllStaged,
+  assertFound,
+  assertNothingStaged,
   assertOnMain,
-  assertPushed,
-  assertRunStarted,
+  assertOnlyVersionStaged,
+  assertTagOn,
   assertValidPackageJson,
+  assertValidStagedVersions,
 } from './asserters.ts'
 
 const REPOSITORY = 'peage-dev/peage'
-const PACKAGES = ['protocol', 'core', 'store-memory', 'store-redis', 'express', 'react-native']
-const CI_WORKFLOW = 'ci.yml'
-const RELEASE_WORKFLOW = 'release.yml'
-const GITHUB_RELEASE_WORKFLOW = 'github-releases.yml'
+/** Dependencies first, the order they are approved in. */
+const PACKAGES = ['protocol', 'core', 'store-memory', 'store-redis', 'express', 'react-native'].map(
+  (name) => `@peage/${name}`,
+)
 const RUN_URL = /\/actions\/runs\/(\d+)/
-const NPM_POLL_INTERVAL_MS = 10_000
-const NPM_WAIT_LIMIT_MS = 15 * 60_000
-
-type ReleaseState = 'not staged' | 'staged' | 'on npm' | 'released'
+const REVIEW_PENDING = /automated review hasn't finished/
 
 function run(command: string, args: string[]): void {
   execFileSync(command, args, { stdio: 'inherit' })
 }
 
 function output(command: string, args: string[]): string {
-  const stdout = execFileSync(command, args, {
+  return execFileSync(command, args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'inherit'],
-  })
-  return stdout.trim()
-}
-
-function succeeds(command: string, args: string[]): boolean {
-  return spawnSync(command, args, { stdio: 'ignore' }).status === 0
+  }).trim()
 }
 
 /** `gh` on the Péage repository. */
@@ -43,11 +37,24 @@ function gh(args: string[]): string {
   return output('gh', [...args, '--repo', REPOSITORY])
 }
 
-/** A field of the latest run of `workflow` matching `filters`, or '' when there is none. */
-function latestRunField(workflow: string, filters: string[], field: string): string {
-  const selection = ['--workflow', workflow, ...filters, '--limit', '1']
-  const projection = ['--json', field, '--jq', `.[0].${field} // ""`]
-  return gh(['run', 'list', ...selection, ...projection])
+/** Fails unless the run succeeds; returns at once for a finished run. */
+function watchRun(runId: string): void {
+  run('gh', ['run', 'watch', runId, '--repo', REPOSITORY, '--exit-status', '--compact'])
+}
+
+function dispatch(workflow: string, tag: string): string {
+  const dispatched = gh(['workflow', 'run', workflow, '--ref', tag])
+  const runId = RUN_URL.exec(dispatched)?.[1]
+  assertFound(runId, `gh did not print the ${workflow} run URL`)
+  return runId
+}
+
+function waitForCi(commit: string): void {
+  const filters = ['--workflow', 'ci.yml', '--event', 'push', '--commit', commit, '--limit', '1']
+  const projection = ['--json', 'databaseId', '--jq', '.[0].databaseId // ""']
+  const runId = gh(['run', 'list', ...filters, ...projection])
+  assertFound(runId, `No CI run for ${commit} yet`)
+  watchRun(runId)
 }
 
 /** All six packages share the version of `@peage/protocol`. */
@@ -59,126 +66,107 @@ function versionAt(commit: string): string {
   return packageJson.version
 }
 
-function lastStagedVersion(): string | undefined {
-  const filters = ['--branch', 'main', '--status', 'success']
-  const commit = latestRunField(RELEASE_WORKFLOW, filters, 'headSha')
-  return commit === '' ? undefined : versionAt(commit)
+/** Creates the tag on GitHub, or checks it's already on the commit. */
+function tagCommit(tag: string, commit: string): void {
+  const ref = `repos/${REPOSITORY}/git/ref/tags/${tag}`
+  const existing = spawnSync('gh', ['api', ref, '--jq', '.object.sha'], { encoding: 'utf8' })
+  if (existing.status === 0) {
+    assertTagOn(existing.stdout.trim(), tag, commit)
+  } else {
+    const fields = ['--raw-field', `ref=refs/tags/${tag}`, '--raw-field', `sha=${commit}`]
+    output('gh', ['api', `repos/${REPOSITORY}/git/refs`, ...fields, '--silent'])
+  }
 }
 
 function isOnNpm(name: string, version: string): boolean {
-  return succeeds('npm', ['view', `@peage/${name}@${version}`, 'version', '--prefer-online'])
+  return spawnSync('npm', ['view', `${name}@${version}`, 'version', '--prefer-online']).status === 0
 }
 
-function packagesMissingFromNpm(version: string): string[] {
-  return PACKAGES.filter((name) => !isOnNpm(name, version))
+/**
+ * npm stages a version only once, so once release.yml succeeded on the commit, everything staged
+ * at its version came from that commit.
+ */
+function wasStagedFrom(commit: string): boolean {
+  const filters = ['--workflow', 'release.yml', '--commit', commit, '--status', 'success']
+  const projection = ['--limit', '1', '--json', 'databaseId', '--jq', 'length']
+  return gh(['run', 'list', ...filters, ...projection]) === '1'
 }
 
-function isReleasedOnGitHub(version: string): boolean {
-  return succeeds('gh', ['release', 'view', `v${version}`, '--repo', REPOSITORY])
+/** Refuses other staged `@peage/*` versions, so it never approves one you didn't release. */
+function stagedVersionsOf(version: string): StagedVersion[] {
+  const staged: unknown = JSON.parse(output('npm', ['stage', 'list', '--json']))
+  assertValidStagedVersions(staged)
+  const ours = PACKAGES.flatMap((name) => staged.filter(({ packageName }) => packageName === name))
+  assertOnlyVersionStaged(ours, version)
+  return ours
 }
 
-function releaseStateOf(version: string): ReleaseState {
-  if (isReleasedOnGitHub(version)) {
-    return 'released'
+/** False while npm's automated review of the version runs; npm has no way to ask about it. */
+function approve({ id, packageName, version }: StagedVersion, otpReference: string): boolean {
+  const result = spawnSync('npm', ['stage', 'approve', id], {
+    encoding: 'utf8',
+    // 2FA codes last 30 seconds, so each attempt reads a fresh one.
+    env: { ...process.env, npm_config_otp: output('op', ['read', otpReference]) },
+  })
+  const npmOutput = `${result.stdout}${result.stderr}`
+  if (result.status !== 0 && !REVIEW_PENDING.test(npmOutput)) {
+    throw new Error(`npm could not approve ${packageName}@${version}:\n${npmOutput}`)
   }
-  if (packagesMissingFromNpm(version).length === 0) {
-    return 'on npm'
+  return result.status === 0
+}
+
+function stageAndApprove(
+  commit: string,
+  tag: string,
+  version: string,
+  unpublished: string[],
+  otpReference: string,
+): void {
+  if (!wasStagedFrom(commit)) {
+    assertNothingStaged(stagedVersionsOf(version), commit)
+    watchRun(dispatch('release.yml', tag))
   }
-  return lastStagedVersion() === version ? 'staged' : 'not staged'
+  const staged = stagedVersionsOf(version)
+  const missing = unpublished.filter(
+    (name) => !staged.some(({ packageName }) => packageName === name),
+  )
+  assertAllStaged(missing, version)
+  for (const stagedVersion of staged) {
+    const label = `${stagedVersion.packageName}@${version}`
+    while (!approve(stagedVersion, otpReference)) {
+      console.log(`npm is still reviewing ${label}; trying again in 30 seconds`)
+      run('sleep', ['30'])
+    }
+    console.log(`Approved ${label}`)
+  }
 }
 
-function assertReadyToRelease(commit: string): void {
-  assertOnMain(output('git', ['branch', '--show-current']))
-  assertCleanWorkingTree(output('git', ['status', '--porcelain']))
-  assertPushed(commit, output('gh', ['api', `repos/${REPOSITORY}/commits/main`, '--jq', '.sha']))
-  assertCiPassed(latestRunField(CI_WORKFLOW, ['--commit', commit], 'conclusion'), commit)
-}
-
-function watchRun(runId: string): void {
-  run('gh', ['run', 'watch', runId, '--repo', REPOSITORY, '--exit-status', '--compact'])
-}
-
-function runWorkflow(workflow: string): void {
-  const dispatched = gh(['workflow', 'run', workflow, '--ref', 'main'])
-  console.log(dispatched)
-  const runId = RUN_URL.exec(dispatched)?.[1]
-  assertRunStarted(runId, workflow)
-  watchRun(runId)
-}
-
-function ignoreInterrupt(): void {}
-
-/** Ctrl-C stops only the running command, so the logout still happens. */
-function withNpmLogin(task: () => void): void {
-  process.on('SIGINT', ignoreInterrupt)
-  try {
+/** Releases the checked-out commit, which must be on main and have passed CI, from its version tag. */
+function main(): void {
+  const otpReference = process.env.NPM_OTP_REFERENCE
+  assertFound(
+    otpReference,
+    'Set NPM_OTP_REFERENCE in .env to the 1Password reference of your npm 2FA code, e.g. op://Private/npm/totp?attribute=otp',
+  )
+  const commit = output('git', ['rev-parse', 'HEAD'])
+  const comparison = `repos/${REPOSITORY}/compare/${commit}...main`
+  assertOnMain(output('gh', ['api', comparison, '--jq', '.status']), commit)
+  waitForCi(commit)
+  const version = versionAt(commit)
+  const tag = `v${version}`
+  tagCommit(tag, commit)
+  const unpublished = PACKAGES.filter((name) => !isOnNpm(name, version))
+  if (unpublished.length > 0) {
+    // Ctrl-C stops the running command, which throws, so the logout still happens.
+    process.on('SIGINT', () => {})
     run('npm', ['login'])
     try {
-      task()
+      stageAndApprove(commit, tag, version, unpublished, otpReference)
     } finally {
       run('npm', ['logout'])
     }
-  } finally {
-    process.off('SIGINT', ignoreInterrupt)
   }
+  watchRun(dispatch('github-releases.yml', tag))
 }
 
-function approveStagedVersions(): void {
-  try {
-    run('pnpm', ['stage', 'approve'])
-  } catch (error) {
-    throw new Error(
-      "Not every version was approved. If npm said its review hasn't finished, run pnpm release again in a minute.",
-      { cause: error },
-    )
-  }
-}
-
-async function waitUntilOnNpm(version: string): Promise<void> {
-  const deadline = Date.now() + NPM_WAIT_LIMIT_MS
-  let missing = packagesMissingFromNpm(version)
-  while (missing.length > 0 && Date.now() < deadline) {
-    console.log(`Waiting for npm to serve ${version} of ${missing.join(', ')}`)
-    // oxlint-disable-next-line no-await-in-loop
-    await sleep(NPM_POLL_INTERVAL_MS)
-    missing = packagesMissingFromNpm(version)
-  }
-  assertAllOnNpm(missing, version)
-}
-
-function stage(version: string): void {
-  runWorkflow(RELEASE_WORKFLOW)
-  console.log(`Staged ${version}. npm reviews it for a few minutes; then run pnpm release again.`)
-}
-
-async function publish(version: string): Promise<void> {
-  withNpmLogin(approveStagedVersions)
-  await waitUntilOnNpm(version)
-  runWorkflow(GITHUB_RELEASE_WORKFLOW)
-}
-
-/** Each run takes the release one step further: stage, then approve and announce it. */
-async function main(): Promise<void> {
-  const commit = output('git', ['rev-parse', 'HEAD'])
-  assertReadyToRelease(commit)
-  const version = versionAt(commit)
-  const state = releaseStateOf(version)
-  console.log(`${version} is ${state}`)
-
-  switch (state) {
-    case 'not staged':
-      stage(version)
-      break
-    case 'staged':
-      await publish(version)
-      break
-    case 'on npm':
-      runWorkflow(GITHUB_RELEASE_WORKFLOW)
-      break
-    case 'released':
-      console.log('Nothing to do; run pnpm changeset version for the next one.')
-      break
-  }
-}
-
-await main()
+main()

@@ -1,7 +1,7 @@
 name: GitHub release
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # on the version tag
 
 permissions: {}
 
@@ -14,11 +14,11 @@ concurrency:
 jobs:
   release:
     name: Create the GitHub release
-    if: github.ref == 'refs/heads/main'
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
-      contents: write # create the tag and the release
+      contents: write # create the release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -50,13 +50,16 @@ jobs:
           }
           version=$(versionOf protocol)
           tag="v$version"
+          if [ "$GITHUB_REF_NAME" != "$tag" ]; then
+            echo "::error::$GITHUB_REF_NAME is not the tag of $version"
+            exit 1
+          fi
           if gh release view "$tag" > /dev/null 2>&1; then
             echo "$tag already has a release"
             exit 0
           fi
           notes="$RUNNER_TEMP/notes.md"
           : > "$notes"
-          target=""
           for package in "${packages[@]}"; do
             name="@peage/$package"
             if [ "$(versionOf "$package")" != "$version" ]; then
@@ -81,12 +84,10 @@ jobs:
               echo "::error::$name@$version provenance has no git commit"
               exit 1
             fi
-            if [ -z "$target" ]; then
-              target="$commit"
-            elif [ "$commit" != "$target" ]; then
-              echo "::error::$name@$version was built from $commit, not $target like the packages before it"
+            if [ "$commit" != "$GITHUB_SHA" ]; then
+              echo "::error::$name@$version was built from $commit, not $GITHUB_SHA where $tag is"
               exit 1
             fi
             releaseNotesOf "$package" >> "$notes"
           done
-          gh release create "$tag" --target "$target" --title "$tag" --notes-file "$notes"
+          gh release create "$tag" --verify-tag --title "$tag" --notes-file "$notes"
