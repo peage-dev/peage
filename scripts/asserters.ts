@@ -101,6 +101,8 @@ export function assertOnMain(status: string, commit: string): void {
 
 export function assertTagOn(taggedCommit: string, tag: string, commit: string): void {
   if (taggedCommit !== commit) {
-    throw new Error(`${tag} is on ${taggedCommit}, not ${commit}; delete the tag to move it`)
+    throw new Error(
+      `${tag} is on ${taggedCommit}, not ${commit}. Run pnpm changeset version for the next version, or delete the tag if ${tag} never got released.`,
+    )
   }
 }

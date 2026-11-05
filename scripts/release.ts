@@ -169,4 +169,10 @@ function main(): void {
   watchRun(dispatch('github-releases.yml', tag))
 }
 
-main()
+/** Errors are for the maintainer running it, so only their message is printed. */
+try {
+  main()
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error)
+  process.exitCode = 1
+}
