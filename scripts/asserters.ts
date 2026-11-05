@@ -73,20 +73,10 @@ export function assertPushed(localCommit: string, remoteCommit: string): void {
   }
 }
 
-export function assertCiPassed(runs: unknown, commit: string): void {
-  const [latestRun] = Array.isArray(runs) ? runs : []
-  if (
-    !isRecord(latestRun) ||
-    latestRun.status !== 'completed' ||
-    latestRun.conclusion !== 'success'
-  ) {
+/** `conclusion` is empty while the run is in progress. */
+export function assertCiPassed(conclusion: string, commit: string): void {
+  if (conclusion !== 'success') {
     throw new Error(`CI has not passed on ${commit}`)
-  }
-}
-
-export function assertSomethingToRelease(missingPackages: string[], version: string): void {
-  if (missingPackages.length === 0) {
-    throw new Error(`${version} is already on npm; run pnpm changeset version first`)
   }
 }
 
@@ -102,7 +92,7 @@ export function assertRunStarted(
 export function assertAllOnNpm(missingPackages: string[], version: string): void {
   if (missingPackages.length > 0) {
     throw new Error(
-      `${missingPackages.join(', ')} not on npm at ${version}; approve them, then run the GitHub release workflow`,
+      `npm doesn't serve ${version} of ${missingPackages.join(', ')} yet; run pnpm release again later`,
     )
   }
 }
