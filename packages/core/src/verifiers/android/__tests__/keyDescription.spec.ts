@@ -4,11 +4,8 @@ import { X509Certificate } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 
 import { getCertificateExtension } from '../../certificates.ts'
-import {
-  ASN1_TAG_CLASS_CONTEXT,
-  KEY_DESCRIPTION_OID,
-  KEY_DESCRIPTION_TAG_ORIGIN,
-} from '../constants.ts'
+import { ASN1_TAG_CLASS_CONTEXT } from '../../constants.ts'
+import { KEY_DESCRIPTION_OID, KEY_DESCRIPTION_TAG_ORIGIN } from '../constants.ts'
 import { parseKeyDescription } from '../keyDescription.ts'
 import { PIXEL_3A_KEY_ATTESTATION, PIXEL_9A_KEY_ATTESTATION } from './deviceFixtures.ts'
 

@@ -94,3 +94,9 @@ export type PlayIntegrityVerdictParams = {
   /** SHA-256 digests of the requesting app's signing certificates. */
   signingCertificateDigests?: Uint8Array[]
 }
+
+export type CertificateDerParams = {
+  extensions?: { id: string; value: Uint8Array; critical?: boolean }[]
+  /** Adds issuerUniqueID and subjectUniqueID, which come before the extensions. */
+  withUniqueIds?: boolean
+}

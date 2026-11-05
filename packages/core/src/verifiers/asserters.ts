@@ -34,6 +34,12 @@ export function assertIssuedBy(certificate: X509Certificate, issuer: X509Certifi
   }
 }
 
+export function assertAtMostOneExtension(matches: unknown[], oid: string): void {
+  if (matches.length > 1) {
+    throw new Error(`Certificate has more than one ${oid} extension`)
+  }
+}
+
 /** keyId = SHA-256 of the uncompressed P-256 point (0x04 ‖ x ‖ y), as Apple defines it. */
 export function assertKeyIdMatches(publicKey: KeyObject, keyId: string): void {
   const jwk = publicKey.export({ format: 'jwk' })

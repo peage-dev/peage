@@ -31,8 +31,6 @@
   },
   "dependencies": {
     "@peage/protocol": "workspace:*",
-    "@peculiar/asn1-schema": "catalog:",
-    "@peculiar/asn1-x509": "catalog:",
     "asn1js": "catalog:",
     "cbor2": "catalog:"
   },

@@ -1,5 +1,6 @@
 export * from './appAttest.ts'
 export * from './bytes.ts'
+export * from './certificates.ts'
 export * from './deviceKey.ts'
 export * from './playIntegrity.ts'
 export * from './playIntegrityRegistration.ts'
