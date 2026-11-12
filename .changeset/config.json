@@ -3,7 +3,7 @@
   "baseBranch": "main",
   "access": "public",
   "format": "auto",
-  "changelog": "@changesets/cli/changelog",
+  "changelog": "../scripts/changelog.ts",
   "commit": false,
   "ignore": [],
   "fixed": [["@peage/*"]],
