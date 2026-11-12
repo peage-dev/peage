@@ -1,6 +1,6 @@
 {
   "name": "@peage/react-native",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "React Native client for Péage: registers the device key and signs requests through fetch.",
   "license": "MIT",
   "repository": {

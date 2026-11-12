@@ -1,5 +1,13 @@
 # @peage/store-redis
 
+## 0.4.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @peage/core@0.4.2
+  - @peage/protocol@0.4.2
+
 ## 0.4.1
 
 ### Patch Changes
