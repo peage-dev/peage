@@ -121,7 +121,7 @@ may also send a sideloaded app to the Play Store before it runs.
   on its own; `metro.config.js` adds the workspace root to `watchFolders` and
   `nodeModulesPaths`.
 - `App.tsx` calls `createPeageClient({ baseUrl })`. The Turbo Module is
-  linked automatically on both platforms: App Attest and the Keychain on iOS,
+  linked automatically on both platforms: App Attest and UserDefaults on iOS,
   Play Integrity and the Android Keystore on Android.
 - The native side passes the app version to `App` as an initial prop
   (`MainActivity.kt`, `SceneDelegate.swift`).

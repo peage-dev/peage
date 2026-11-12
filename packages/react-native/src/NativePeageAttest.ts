@@ -5,7 +5,8 @@ import { TurboModuleRegistry } from 'react-native'
 /**
  * Each scope has its own registered key. Hashes and proofs are base64url; the
  * keyId is padded base64. Failures reject with a code; `E_INVALID_KEY` means
- * the OS no longer has the key.
+ * the OS no longer has the key, as does iOS's `E_INVALID_INPUT` for a keyId
+ * stored before a reinstall or a restore on another device.
  */
 export interface Spec extends TurboModule {
   /** Android resolves false without the Play Store. */

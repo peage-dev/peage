@@ -126,6 +126,11 @@ async function expectClientError(promise: Promise<unknown>, code: string) {
   )
 }
 
+/** What iOS reports when asked to sign with a keyId whose key is gone after a reinstall. */
+function invalidInputError(): Error {
+  return Object.assign(new Error('Invalid parameters'), { code: 'E_INVALID_INPUT' })
+}
+
 function nativeFailingFirstAttestation(code: string) {
   const attestedKeyIds: string[] = []
   const generateKey = vi.fn(async () => `KEY_${generateKey.mock.calls.length}`)
@@ -784,6 +789,79 @@ describe('signing', () => {
     const headers = callTo(calls, '/b')?.headers
     expect(headers?.get(HTTP_HEADER_KEY_ID)).toBe('GENERATED_KEY_ID')
     expect(headers?.get(HTTP_HEADER_ASSERTION)).toBe('FRESH_ASSERTION')
+  })
+
+  it('registers once and signs when a reinstall left the stored keyId without its key', async () => {
+    const native = stubNative({
+      async generateAssertion(keyId) {
+        if (keyId === 'PREVIOUS_INSTALL_KEY_ID') {
+          throw invalidInputError()
+        }
+        return 'FRESH_ASSERTION'
+      },
+    })
+    await native.markAttested('PREVIOUS_INSTALL_KEY_ID', BASE_URL)
+    const calls: Call[] = []
+    const peage = createClient(native, recordingFetch(calls))
+
+    await peage.fetch('/x')
+
+    expect(calls.filter(({ url }) => url.endsWith('/peage/challenge'))).toHaveLength(1)
+    const headers = callTo(calls, '/x')?.headers
+    expect(headers?.get(HTTP_HEADER_KEY_ID)).toBe('GENERATED_KEY_ID')
+    expect(headers?.get(HTTP_HEADER_ASSERTION)).toBe('FRESH_ASSERTION')
+  })
+
+  it('reports invalid input on a key registered since launch without registering again', async () => {
+    const generateKey = vi.fn(async () => 'GENERATED_KEY_ID')
+    const generateAssertion = vi.fn(async () => {
+      throw invalidInputError()
+    })
+    const peage = createClient(stubNative({ generateKey, generateAssertion }), recordingFetch([]))
+
+    await expectClientError(peage.fetch('/x'), 'NATIVE')
+
+    expect(generateKey).toHaveBeenCalledTimes(1)
+    expect(generateAssertion).toHaveBeenCalledTimes(1)
+  })
+
+  it('registers only once when the replacement key also reports invalid input', async () => {
+    const generateKey = vi.fn(async () => 'GENERATED_KEY_ID')
+    const generateAssertion = vi.fn(async () => {
+      throw invalidInputError()
+    })
+    const native = stubNative({ generateKey, generateAssertion })
+    await native.markAttested('PREVIOUS_INSTALL_KEY_ID', BASE_URL)
+    const peage = createClient(native, recordingFetch([]))
+
+    await expectClientError(peage.fetch('/x'), 'NATIVE')
+
+    expect(generateKey).toHaveBeenCalledTimes(1)
+    expect(generateAssertion).toHaveBeenCalledTimes(2)
+  })
+
+  it('still signs after the clearKey workaround for invalid input', async () => {
+    let assertionCalls = 0
+    const native = stubNative({
+      async generateAssertion() {
+        assertionCalls += 1
+        if (assertionCalls === 1) {
+          throw invalidInputError()
+        }
+        return 'FRESH_ASSERTION'
+      },
+    })
+    const calls: Call[] = []
+    const peage = createClient(native, recordingFetch(calls))
+
+    const failure = await peage.fetch('/x').catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(PeageClientError)
+    expect(failure).toHaveProperty('code', 'NATIVE')
+    expect(failure).toHaveProperty('cause.code', 'E_INVALID_INPUT')
+    await peage.clearKey()
+    await peage.fetch('/x')
+
+    expect(callTo(calls, '/x')?.headers.get(HTTP_HEADER_ASSERTION)).toBe('FRESH_ASSERTION')
   })
 
   it('reports other native failures without retrying', async () => {

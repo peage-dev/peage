@@ -24,6 +24,7 @@ type KeyScopeState = {
   failedRegistrations: FailedRegistrations
   /** Apple's guidance: after a server-unavailable error, attest the same key again. */
   appAttestKeyIdAwaitingAttestation: string | null
+  keyIdRegisteredSinceLaunch: string | null
 }
 
 const NO_FAILED_REGISTRATIONS: FailedRegistrations = { count: 0, lastError: null }
@@ -36,6 +37,7 @@ function newKeyScopeState(): KeyScopeState {
     keyForgettingQueue: Promise.resolve(),
     failedRegistrations: NO_FAILED_REGISTRATIONS,
     appAttestKeyIdAwaitingAttestation: null,
+    keyIdRegisteredSinceLaunch: null,
   }
 }
 
@@ -78,6 +80,7 @@ type Registration = {
   register: () => Promise<string>
   forgetKey: (keyId: string) => Promise<void>
   clearKey: () => Promise<void>
+  wasRegisteredSinceLaunch: (keyId: string) => boolean
 }
 
 export function createRegistration(options: RegistrationOptions): Registration {
@@ -144,6 +147,7 @@ export function createRegistration(options: RegistrationOptions): Registration {
 
     assertSolveAccepted(await postJson(solveUrl, { challenge, keyId, platform, proof }))
     await callNative(() => native.markAttested(keyId, keyScope))
+    state.keyIdRegisteredSinceLaunch = keyId
     return keyId
   }
 
@@ -193,5 +197,9 @@ export function createRegistration(options: RegistrationOptions): Registration {
     await callNative(() => native.clearKeyId(keyScope))
   }
 
-  return { register, forgetKey, clearKey }
+  function wasRegisteredSinceLaunch(keyId: string): boolean {
+    return keyId === state.keyIdRegisteredSinceLaunch
+  }
+
+  return { register, forgetKey, clearKey, wasRegisteredSinceLaunch }
 }

@@ -80,7 +80,7 @@ export function createPeageClientWithNative(
     options.maxRegistrationAttempts ?? DEFAULT_MAX_REGISTRATION_ATTEMPTS
   const { debugToken } = options
 
-  const { register, forgetKey, clearKey } = createRegistration({
+  const { register, forgetKey, clearKey, wasRegisteredSinceLaunch } = createRegistration({
     native,
     platform,
     challengeUrl: serverUrlOf(options.challengePath ?? CHALLENGE_PATH, server),
@@ -90,12 +90,23 @@ export function createPeageClientWithNative(
     maxRegistrationAttempts,
   })
 
+  /**
+   * The OS no longer has the key. iOS reports a stored keyId whose key went with a previous
+   * installation or device as invalid input rather than an invalid key.
+   */
+  function isLostKey(error: unknown, keyId: string): boolean {
+    const code = nativeErrorCode(error)
+    return (
+      code === 'E_INVALID_KEY' || (code === 'E_INVALID_INPUT' && !wasRegisteredSinceLaunch(keyId))
+    )
+  }
+
   async function sign(request: RequestToSend): Promise<SignedRequestHeaders> {
     const keyId = await register()
     try {
       return await signWithKey(native, keyId, request)
     } catch (error) {
-      if (nativeErrorCode(error) !== 'E_INVALID_KEY') {
+      if (!isLostKey(error, keyId)) {
         throw error
       }
       await forgetKey(keyId)

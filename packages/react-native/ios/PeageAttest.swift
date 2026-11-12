@@ -7,8 +7,13 @@ import Security
 /// The App Attest implementation; `PeageAttest.mm` exposes it as the Turbo Module.
 @objc(PeageAttestImpl)
 public final class PeageAttestImpl: NSObject {
-  private static let keychainService = "dev.peage.react-native"
-  private static let keychainAccountPrefix = "appAttestKeyId."
+  /// UserDefaults are deleted with the app, like its App Attest keys; Keychain items aren't. A
+  /// backup restored on another device brings the keyId back without its key; the client then
+  /// registers a new one.
+  private static let keyIdDefaultsPrefix = "dev.peage.react-native.appAttestKeyId."
+  /// Where 0.4.1 and earlier stored keyIds.
+  private static let legacyKeychainService = "dev.peage.react-native"
+  private static let legacyKeychainAccountPrefix = "appAttestKeyId."
 
   @objc public func isSupported(_ resolve: @escaping RCTPromiseResolveBlock,
                                 reject: @escaping RCTPromiseRejectBlock) {
@@ -30,12 +35,8 @@ public final class PeageAttestImpl: NSObject {
                                  scope: String,
                                  resolve: @escaping RCTPromiseResolveBlock,
                                  reject: @escaping RCTPromiseRejectBlock) {
-    do {
-      try Keychain.write(keyId, service: Self.keychainService, account: Self.keychainAccount(scope))
-      resolve(NSNull())
-    } catch {
-      reject("E_KEYCHAIN_WRITE", error.localizedDescription, error)
-    }
+    UserDefaults.standard.set(keyId, forKey: Self.keyIdDefaultsKey(scope))
+    resolve(NSNull())
   }
 
   @objc public func getKeyId(_ scope: String,
@@ -43,8 +44,7 @@ public final class PeageAttestImpl: NSObject {
                              reject: @escaping RCTPromiseRejectBlock) {
     do {
       // String? bridges to JS null when nil.
-      let keyId = try Keychain.read(service: Self.keychainService, account: Self.keychainAccount(scope))
-      resolve(keyId as Any)
+      resolve(try Self.storedKeyId(scope) as Any)
     } catch {
       reject("E_KEYCHAIN_READ", error.localizedDescription, error)
     }
@@ -54,7 +54,8 @@ public final class PeageAttestImpl: NSObject {
                                resolve: @escaping RCTPromiseResolveBlock,
                                reject: @escaping RCTPromiseRejectBlock) {
     do {
-      try Keychain.delete(service: Self.keychainService, account: Self.keychainAccount(scope))
+      UserDefaults.standard.removeObject(forKey: Self.keyIdDefaultsKey(scope))
+      try Keychain.delete(service: Self.legacyKeychainService, account: Self.legacyKeychainAccount(scope))
       resolve(NSNull())
     } catch {
       reject("E_KEYCHAIN_DELETE", error.localizedDescription, error)
@@ -109,8 +110,28 @@ public final class PeageAttestImpl: NSObject {
     resolve(Data(SHA256.hash(data: bytes)).base64URLEncodedString())
   }
 
-  private static func keychainAccount(_ scope: String) -> String {
-    keychainAccountPrefix + scope
+  private static func keyIdDefaultsKey(_ scope: String) -> String {
+    keyIdDefaultsPrefix + scope
+  }
+
+  private static func legacyKeychainAccount(_ scope: String) -> String {
+    legacyKeychainAccountPrefix + scope
+  }
+
+  /// Moves a keyId from where 0.4.1 and earlier stored it, so an app update keeps its key. After a
+  /// reinstall that keyId has no key left; the client then registers a new one.
+  private static func storedKeyId(_ scope: String) throws -> String? {
+    if let keyId = UserDefaults.standard.string(forKey: keyIdDefaultsKey(scope)) {
+      return keyId
+    }
+    let account = legacyKeychainAccount(scope)
+    guard let legacyKeyId = try Keychain.read(service: legacyKeychainService, account: account) else {
+      return nil
+    }
+    UserDefaults.standard.set(legacyKeyId, forKey: keyIdDefaultsKey(scope))
+    // UserDefaults is read first from now on, so an item left behind is never read again.
+    try? Keychain.delete(service: legacyKeychainService, account: account)
+    return legacyKeyId
   }
 
   private static func errorCode(for error: Error, fallback: String) -> String {
@@ -128,26 +149,6 @@ public final class PeageAttestImpl: NSObject {
 // MARK: - Keychain
 
 private enum Keychain {
-  static func write(_ value: String, service: String, account: String) throws {
-    let data = Data(value.utf8)
-    let query: [String: Any] = [
-      kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: service,
-      kSecAttrAccount as String: account,
-    ]
-    let updateStatus = SecItemUpdate(
-      query as CFDictionary, [kSecValueData as String: data] as CFDictionary
-    )
-    if updateStatus == errSecSuccess { return }
-    if updateStatus != errSecItemNotFound { throw KeychainError.osStatus(updateStatus) }
-
-    var addQuery = query
-    addQuery[kSecValueData as String] = data
-    addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-    let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
-    guard addStatus == errSecSuccess else { throw KeychainError.osStatus(addStatus) }
-  }
-
   static func read(service: String, account: String) throws -> String? {
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,

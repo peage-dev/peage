@@ -12,6 +12,7 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => min_ios_version_supported }
   s.source       = { :git => "https://github.com/peage-dev/peage.git", :tag => "v#{s.version}" }
   s.source_files = "ios/**/*.{h,m,mm,swift}"
+  s.resource_bundles = { "PeageReactNative_privacy" => ["ios/PrivacyInfo.xcprivacy"] }
 
   install_modules_dependencies(s)
 end
